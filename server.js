@@ -1,44 +1,77 @@
+// server.js
 const express = require('express');
+const cors = require('cors'); // Import CORS middleware
+const morgan = require('morgan'); // Import morgan untuk logging request
+const FileUpload = require('express-fileupload'); // Untuk penanganan upload file
+const mainApiRouter = require('./routes/route'); // Import router API utama (routes/index.js)
+const { testDbConnection } = require('./config/db'); // Import fungsi testDbConnection dari db.js
+require('dotenv').config(); // Memuat variabel lingkungan dari file .env
+
 const app = express();
 
-// Middleware untuk parsing JSON body
+// Middleware Global
+// Mengaktifkan CORS (Cross-Origin Resource Sharing)
+// Di produksi, Anda sebaiknya membatasi origin ke domain frontend Anda saja.
+app.use(cors());
+
+// Middleware untuk logging request HTTP
+app.use(morgan('dev'));
+
+// Middleware untuk parsing JSON body dari request
 app.use(express.json());
 
-// Contoh rute
+// Middleware untuk parsing URL-encoded body dari request (jika ada form HTML biasa)
+app.use(express.urlencoded({ extended: true })); // Menggantikan body-parser.urlencoded
+
+app.use(FileUpload());
+
+// Middleware untuk menyajikan file statis dari folder 'public'
+app.use(express.static('public')); // Menggantikan app.use('/css', express.static(__dirname + 'public/css'))
+
+// Rute Utama API dengan Prefix /oceantic/v1
+// Semua rute yang didefinisikan di routes/index.js sekarang akan diawali dengan /oceantic/v1
+// Contoh: POST /oceantic/v1/register, GET /oceantic/v1/registrations/:id
+app.use('/oceantic/v1', mainApiRouter);
+
+// Rute Home (Root API)
+// Ini adalah rute default ketika mengakses base URL API Anda.
 app.get('/', (req, res) => {
-  res.send('Selamat datang di OCEANETIC API!');
+  res.send('OCEANETIC Backend API berjalan! Akses API di /oceantic/v1/...');
 });
 
-app.get('/api/data', (req, res) => {
-  res.json({ message: 'Ini adalah data dari API Anda.' });
+// Middleware penanganan 404 (URL tidak ditemukan)
+app.use(function (req, res, next) {
+    let ress = {
+        code: '404',
+        message: "Failed, URL tidak ditemukan",
+    }
+    res.status(404).send(ress);
 });
 
-// Contoh rute login (sesuai yang Anda gunakan di frontend)
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  // Logika autentikasi dummy atau nyata Anda di sini
-  if (username === 'ryansomnia' && password === 'lzhyto2371') {
-    res.status(200).json({ message: 'Login berhasil!', token: 'dummy_token_123' });
-  } else {
-    res.status(401).json({ message: 'Username atau password salah.' });
+// Penanganan Error (Middleware terakhir)
+// Ini akan menangkap error yang tidak tertangani oleh rute atau middleware sebelumnya.
+app.use((err, req, res, next) => {
+  console.error(err.stack); // Log error stack ke console server
+  res.status(500).send('Terjadi kesalahan pada server!');
+});
+
+// Penting: Jangan panggil app.listen() di sini jika Anda mendeploy ke Vercel!
+// Vercel akan menangani listening secara internal untuk serverless functions.
+// Baris ini hanya untuk pengembangan lokal.
+const PORT = process.env.PORT || 5000; // Port default 5000 jika tidak diatur di environment
+app.listen(PORT, async () => { // Tandai callback sebagai async
+  console.log(`Server berjalan di http://localhost:${PORT}`);
+
+  // Panggil fungsi testDbConnection saat server mulai mendengarkan
+  // dan tunggu hasilnya.
+  const isConnected = await testDbConnection();
+  if (!isConnected) {
+    console.error('Koneksi database gagal saat startup. Aplikasi mungkin tidak berfungsi dengan baik.');
+    // Opsional: Anda bisa memilih untuk menghentikan aplikasi di sini jika koneksi DB sangat krusial
+    // process.exit(1);
   }
 });
 
-// Contoh rute register (sesuai yang Anda gunakan di frontend)
-app.post('/api/register', (req, res) => {
-  const { username, password, fullname, email, nohp, gender, role } = req.body;
-  // Logika registrasi dummy atau nyata Anda di sini
-  // Misalnya, simpan ke database
-  console.log('User registered:', { username, fullname, email });
-  res.status(201).json({ message: 'Registrasi berhasil!' });
-});
-
-
-// Jangan panggil app.listen() di sini jika Anda mendeploy ke Vercel!
-// const PORT = process.env.PORT || 3000;
-// app.listen(PORT, () => {
-//   console.log(`Server berjalan di port ${PORT}`);
-// });
-
-// Penting: Ekspor instance aplikasi Express
+// Ekspor instance aplikasi Express untuk digunakan oleh Vercel
+// Ini adalah titik masuk yang akan dicari oleh Vercel saat deployment.
 module.exports = app;
