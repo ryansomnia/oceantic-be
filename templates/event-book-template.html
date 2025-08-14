@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{namaEvent}} - Buku Acara</title>
+    <style>
+      @media print { body { -webkit-print-color-adjust: exact; } }
+      body {
+        font-family: "Courier New", Courier, monospace;
+        font-size: 10px;
+        margin: 25px 30px;
+        color: #222;
+        background: #fff;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 6px;
+        line-height: 1.1;
+      }
+      .header .title {
+        font-size: 14px;
+        font-weight: bold;
+        letter-spacing: 1px;
+      }
+      .header .sub {
+        font-size: 11px;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #000;
+        margin: 10px 0 4px;
+      }
+      .competition-section {
+        margin-top: 14px;
+        page-break-inside: avoid;
+      }
+      .competition-header {
+        font-size: 11px;
+        font-weight: bold;
+        border: 1px solid #000;
+        padding: 4px 8px;
+        display: inline-block;
+        margin-bottom: 6px;
+      }
+      .table-wrapper {
+        overflow-x: visible;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 4px;
+        table-layout: fixed; /* Tambahan: Memastikan lebar tabel tetap */
+      }
+      thead tr {
+        border-bottom: 1px solid #000;
+      }
+      th, td {
+        padding: 4px 6px;
+        vertical-align: top;
+        font-size: 9px;
+        text-align: left; /* Tambahan: Memastikan teks rata kiri */
+        word-wrap: break-word; /* Tambahan: Memecah kata jika terlalu panjang */
+      }
+      th {
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+      /* Penyesuaian lebar kolom untuk tampilan yang lebih baik */
+      .cell.small {
+        width: 8%; /* Sebelumnya 45px */
+      }
+      .cell.name {
+        width: 25%; /* Sebelumnya 160px */
+      }
+      .cell.school {
+        width: 30%; /* Sebelumnya 200px */
+      }
+      tbody tr:nth-child(even) {
+        background: #f2f2f2;
+      }
+      .footer {
+        margin-top: 40px;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .signature {
+        text-align: center;
+        margin-right: 60px;
+        font-size: 10px;
+      }
+      .signature-line {
+        display: block;
+        margin-top: 30px;
+        border-top: 1px solid #000;
+        width: 160px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .note {
+        margin-top: 4px;
+        font-size: 9px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="title">AREA SWIMMING COMPETITION</div>
+      <div class="sub">{{namaEvent}}</div>
+      <div class="sub">{{formattedDate}}</div>
+      <div class="sub">{{location}}</div>
+    </div>
+    <hr />
+    {{competitionHtml}}
+    <div class="footer">
+      <div class="signature">
+        <div class="signature-line"></div>
+        <div class="note">Tanda Tangan</div>
+        <div class="note">{{currentDate}}</div>
+      </div>
+    </div>
+  </body>
+</html>

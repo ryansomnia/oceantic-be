@@ -1,9 +1,86 @@
-// controller/event.js
+const { json } = require('express');
 const pool = require('../config/db'); // Import pool koneksi database
+const axios = require('axios');
+const puppeteer = require('puppeteer');
+const path = require('path');
+const fs = require('fs/promises'); // Tambahkan modul fs/promises
 
-// 1. Fungsi untuk Membuat Event Baru
-// INSERT INTO `oceantic`.`events` (`title`, `event_date`, `location`, `description`, `registration_start_date`, `registration_end_date`, `event_status`, `created_at`, `updated_at`) VALUES ('AKUATIK JAKARTA TIMUR Sprint SWIMMING terbuka 2025\nAKUATIK JAKARTA TIMUR Sprint SWIMMING terbuka 2025\n', '2025-08-15', 'Jakarta Timur', 'Dalam semangat kemerdekaan dan sportivitas, Akuatik Jakarta Timur dengan bangga mempersembahkan Kejuaraan Akuatik Jakarta Timur Terbuka 2025. Acara ini diselenggarakan untuk memperingati 80 tahun Kemerdekaan Republik Indonesia sekaligus menjadi ajang pengembangan prestasi dan bakat para atlet muda di bidang olahraga akuatik.', '2025-07-05', '2025-08-05', 'open', '2025-07-21', '2025-07-21');
 
+
+const escape = (s) => {
+  if (s === undefined || s === null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+};
+const buildHtmlFromEventBook = (eventBook, template) => {
+  const { namaEvent, date, location, detailCompetition } = eventBook;
+  const formattedDate = new Date(date).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+  const currentDate = new Date().toLocaleDateString("id-ID");
+
+  const competitionHtml = (detailCompetition || [])
+    .map((comp) => {
+      const headerText = `Acara ${escape(comp.acara)} | ${escape(
+        comp.jarak
+      )} ${escape(comp.gaya)} - ${escape(comp.gender)} | Golongan: ${escape(
+        comp.golongan
+      )}`;
+
+      const swimmersRows = (comp.detailSwimmer || [])
+        .map((sw) => {
+          return `
+            <tr>
+              <td class="cell small">${escape(sw.seri)}</td>
+              <td class="cell small">${escape(sw.grup)}</td>
+              <td class="cell small">${escape(sw.lint)}</td>
+              <td class="cell name">${escape(sw.nama)}</td>
+              <td class="cell small">${escape(sw.club)}</td>
+              <td class="cell school">${escape(sw.qet)}</td>
+              <td class="cell small">${escape(sw.hasil)}</td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      return `
+        <div class="competition-section">
+          <div class="competition-header">${headerText}</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Seri</th>
+                  <th>Grup</th>
+                  <th>Lint</th>
+                  <th>Nama</th>
+                  <th>Asal Sekolah/Club</th>
+                  <th>QET</th>
+                  <th>Hasil</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${swimmersRows || `<tr><td colspan="7" style="text-align:center;">Tidak ada peserta</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  // Mengisi placeholder dalam template dengan data acara
+  return template
+    .replace('{{namaEvent}}', escape(namaEvent))
+    .replace('{{formattedDate}}', escape(formattedDate))
+    .replace('{{location}}', escape(location))
+    .replace('{{competitionHtml}}', competitionHtml)
+    .replace('{{currentDate}}', currentDate);
+};
 
 let event = {
  createEvent : async (req, res) => {
@@ -19,8 +96,11 @@ let event = {
 
   // Validasi input dasar
   if (!title || !event_date || !location) {
-    return res.status(400).json({ message: 'Judul, tanggal event, dan lokasi wajib diisi.' });
-  }
+    return res.status(400).json({ 
+      code:400,
+      message: 'Bad Request',
+    detail:`Judul, tanggal event, dan lokasi wajib diisi.`
+    })}
 
   try {
     const [result] = await pool.execute(
@@ -35,12 +115,16 @@ let event = {
     );
 
     res.status(201).json({
-      message: 'Event berhasil dibuat!',
-      eventId: result.insertId
+      code:201,
+      message: 'Created',
+      detail:`event  ${result.insertId} created`
     });
   } catch (error) {
     console.error('Error saat membuat event:', error);
-    res.status(500).json({ message: 'Terjadi kesalahan server saat membuat event.' });
+    res.status(500).json({ 
+      code:500,
+      message: 'error',
+      detail:`Terjadi kesalahan server saat membuat event: ${error.message}`});
   }
 },
 // 2. Fungsi untuk Mendapatkan Semua Event
@@ -50,7 +134,8 @@ let event = {
   
   try {
     const [rows] = await pool.execute('SELECT * FROM events ORDER BY event_date DESC ');
-    res.status(200).json(rows);
+    res.status(200).json({code: 200, message: 'Success', data: rows });
+  
   } catch (error) {
     console.error('Error saat mendapatkan semua event:', error);
     res.status(500).json({ message: 'Terjadi kesalahan server.' });
@@ -63,10 +148,130 @@ getAllEventsOpen : async (req, res) => {
   console.log('====================================');
   try {
     const [rows] = await pool.execute("SELECT * FROM events WHERE event_status = 'Open for Registration'  ORDER BY event_date DESC");
-    res.status(200).json(rows);
+    
+    res.status(200).json({ code: 200, message: 'Success', data: rows });
+   
   } catch (error) {
     console.error('Error saat mendapatkan semua event:', error);
-    res.status(500).json({ message: 'Terjadi kesalahan server.' });
+    res.status(500).json({ code: 500, message: 'Terjadi kesalahan server.', detail: error });
+  }
+},
+
+getEventBook: async (req, res) => {
+  const { eventId } = req.body; // Ambil eventId dari body request
+
+  // Validasi input awal
+  if (!eventId) {
+    return res.status(400).json({ 
+      code: 400, 
+      message: 'Event ID wajib disediakan.', 
+      detail: null 
+    });
+  }
+
+  try {
+    // Panggil stored procedure GetEventBookData
+    const [rows] = await pool.execute('CALL GetEventBookData(?)', [eventId]);
+
+    // Hapus console.log yang bermasalah
+    // console.log('====================================');
+    // console.log(rows);
+    // console.log(JSON.parse(rows.detailCompetition));
+    // console.log('====================================');
+
+    // Periksa apakah set hasil pertama ada dan tidak kosong
+    if (rows && rows[0] && rows[0].length > 0) {
+      const eventData = rows[0][0]; // Ambil baris pertama dari set hasil pertama
+
+      // Periksa dan pastikan detailCompetition adalah array. 
+      // Berdasarkan log Anda, ini sudah array, jadi kita tidak perlu JSON.parse.
+      // Jika detailCompetition tidak ada atau null, kita default ke array kosong.
+      if (!eventData.detailCompetition) {
+        eventData.detailCompetition = [];
+      }
+      
+      res.status(200).json({ 
+        code: 200, 
+        message: 'Data buku acara berhasil diambil.', 
+        detail: eventData 
+      });
+    } else {
+      res.status(404).json({ 
+        code: 404, 
+        message: 'Buku acara untuk event ini tidak ditemukan.', 
+        detail: null 
+      });
+    }
+  } catch (error) {
+    console.error('Error in getEventBook controller:', error);
+    res.status(500).json({ 
+      code: 500, 
+      message: 'Terjadi kesalahan server saat mengambil buku acara.', 
+      detail: error.message 
+    });
+  }
+},
+
+
+// Fungsi utama untuk menghasilkan PDF
+
+ 
+generateEventBookPdf :async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    if (!eventId) {
+      return res
+        .status(400)
+        .json({ message: "eventId harus disediakan di body request." });
+    }
+
+    // Ambil data dari service kamu
+    const apiResponse = await axios.post(
+      "http://localhost:3025/oceantic/v1/getEventBook",
+      { eventId }
+    );
+
+    const eventBook = apiResponse?.data?.detail;
+    if (!eventBook) {
+      return res
+        .status(404)
+        .json({ message: "Data buku acara tidak ditemukan." });
+    }
+
+    // Baca file template HTML secara asinkron
+    const templatePath = path.join(__dirname, '..', 'templates', 'event-book-template.html');
+    const htmlTemplate = await fs.readFile(templatePath, 'utf8');
+
+    // Bangun HTML dengan template
+    const htmlContent = buildHtmlFromEventBook(eventBook, htmlTemplate);
+
+    // Generate PDF dengan Puppeteer
+    const browser = await puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: { top: "20mm", right: "15mm", bottom: "20mm", left: "15mm" },
+    });
+    await browser.close();
+
+    // Kirim PDF
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="buku_acara_${escape(eventBook.namaEvent)
+        .replace(/\s+/g, "_")
+        .toLowerCase()}.pdf"`
+    );
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("Gagal menghasilkan PDF:", error);
+    res
+      .status(500)
+      .json({ message: "Terjadi kesalahan saat membuat PDF", error: error.message });
   }
 },
 

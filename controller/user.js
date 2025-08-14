@@ -1,20 +1,19 @@
 // controller/user.js
-const bcrypt = require('bcryptjs'); // Untuk hashing password
-const jwt = require('jsonwebtoken'); // Untuk membuat JWT
-const pool = require('../config/db'); // Import pool koneksi database
-require('dotenv').config(); // Memuat variabel lingkungan
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const pool = require('../config/db');
+require('dotenv').config();
 
 // Fungsi untuk Registrasi Pengguna
-const registerUser = async (req, res) => {
+let user = {
+ registerUser : async (req, res) => {
   const { username, password, fullname, email, nohp, gender, role } = req.body;
 
-  // Validasi input sederhana
   if (!username || !password || !fullname || !email || !nohp || !gender) {
     return res.status(400).json({ message: 'Semua kolom wajib diisi.' });
   }
 
   try {
-    // Cek apakah username atau email sudah ada
     const [existingUsers] = await pool.execute(
       'SELECT id FROM users WHERE username = ? OR email = ?',
       [username, email]
@@ -24,39 +23,31 @@ const registerUser = async (req, res) => {
       return res.status(409).json({ message: 'Username atau Email sudah terdaftar.' });
     }
 
-    // Hash password sebelum disimpan
-    const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds = 10
-
-    // Simpan pengguna baru ke database
+    const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await pool.execute(
       'INSERT INTO users (username, password, fullname, email, nohp, gender, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [username, hashedPassword, fullname, email, nohp, gender, role || 'peserta'] // Default role jika tidak disediakan
+      [username, hashedPassword, fullname, email, nohp, gender, role || 'member']
     );
 
-    res.status(201).json({ message: 'Registrasi berhasil!', userId: result.insertId });
+    res.status(201).json({ message: 'Registrasi berhasil!', id: result.insertId });
   } catch (error) {
     console.error('Error saat registrasi:', error);
     res.status(500).json({ message: 'Terjadi kesalahan server saat registrasi.' });
   }
-};
+},
 
 // Fungsi untuk Login Pengguna
-const loginUser = async (req, res) => {
-  console.log('================login====================');
-  console.log("login");
-  console.log('====================================');
+ loginUser : async (req, res) => {
   const { username, password } = req.body;
 
-  // Validasi input
   if (!username || !password) {
     return res.status(400).json({ message: 'Username/Email dan Password wajib diisi.' });
   }
 
   try {
-    // Cari pengguna berdasarkan username atau email
     const [users] = await pool.execute(
       'SELECT * FROM users WHERE username = ? OR email = ?',
-      [username, username] // Mencari di kedua kolom
+      [username, username]
     );
 
     if (users.length === 0) {
@@ -64,25 +55,18 @@ const loginUser = async (req, res) => {
     }
 
     const user = users[0];
-
-    // Bandingkan password yang dimasukkan dengan password yang di-hash di database
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Username/Email atau Password salah.' });
     }
 
-    // Buat JWT
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role, fullname: user.fullname },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' } // Token akan kadaluarsa dalam 1 jam
+      { expiresIn: '1h' }
     );
-    console.log('==================user==================');
-    console.log(user);
-    console.log('====================================');
 
-    // Kirim token dan informasi user (tanpa password)
     res.status(200).json({
       message: 'Login berhasil!',
       token,
@@ -100,14 +84,12 @@ const loginUser = async (req, res) => {
     console.error('Error saat login:', error);
     res.status(500).json({ message: 'Terjadi kesalahan server saat login.' });
   }
-};
+},
+
 // Fungsi untuk mendapatkan profil pengguna yang sedang login
-const getUserProfile = async (req, res) => {
-  // ID pengguna didapat dari token JWT setelah middleware verifyToken
+ getUserProfile : async (req, res) => {
   const userId = req.body.id;
-console.log('=================sss===================');
-console.log(userId);
-console.log('====================================');
+
   try {
       const [rows] = await pool.execute(
           'SELECT id, username, fullname, email, nohp, gender, role FROM users WHERE id = ?',
@@ -116,70 +98,137 @@ console.log('====================================');
       if (rows.length === 0) {
           return res.status(404).json({ message: 'User not found.' });
       }
-      console.log('====================================');
-      console.log(rows);
-      console.log('====================================');
       res.status(200).json(rows[0]);
   } catch (error) {
       console.error('Error fetching user profile:', error);
       res.status(500).json({ message: 'Terjadi kesalahan server.' });
   }
-};
-const updateUserProfile = async (req, res) => {
-  const userId = req.user.id; // ID dari token
-  const { fullname, email, nohp, gender } = req.body;
+},
 
-  // Validasi sederhana
-  if (!fullname && !email && !nohp && !gender) {
-      return res.status(400).json({ message: 'Tidak ada data yang disediakan untuk diperbarui.' });
+ updateUserProfile : async (req, res) => {
+  const {id} = req.params;
+  const { username, fullname, email, nohp, role } = req.body;
+
+  if (!username && !fullname && !email && !nohp && !role) {
+      return res.status(400).json({code:400, message: 'success', detail:'Tidak ada data yang disediakan untuk diperbarui.' });
   }
 
-  // Bangun query UPDATE secara dinamis
   const fields = [];
   const values = [];
 
-  if (fullname !== undefined) { fields.push('fullname = ?'); values.push(fullname); }
+  if (username !== undefined) { fields.push('username  = ?'); values.push(username ); }
+  if (fullname !== undefined) { fields.push('fullname  = ?'); values.push(fullname ); }
   if (email !== undefined) { fields.push('email = ?'); values.push(email); }
   if (nohp !== undefined) { fields.push('nohp = ?'); values.push(nohp); }
-  if (gender !== undefined) { fields.push('gender = ?'); values.push(gender); }
+  if (role !== undefined) { fields.push('role = ?'); values.push(role); }
 
   if (fields.length === 0) {
-      return res.status(400).json({ message: 'Tidak ada data valid untuk diperbarui.' });
+      return res.status(400).json({code:400, message: 'failed', detail:'Tidak ada data valid untuk diperbarui.' });
   }
 
   const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
-  values.push(userId);
+  values.push(id);
 
   try {
       const [result] = await pool.execute(query, values);
 
       if (result.affectedRows === 0) {
-          // Ini bisa terjadi jika user tidak ditemukan (meskipun sudah diverifikasi token)
-          // atau jika tidak ada perubahan data yang sebenarnya
-          return res.status(404).json({ message: 'Pengguna tidak ditemukan atau tidak ada perubahan.' });
+          return res.status(404).json({code:404, message: 'failed', detail:'Pengguna tidak ditemukan atau tidak ada perubahan.' });
       }
 
-      // Ambil data user yang diperbarui untuk dikirim kembali ke frontend
       const [updatedUser] = await pool.execute(
-          'SELECT id, username, fullname, email, nohp, gender, role FROM users WHERE id = ?',
-          [userId]
+          'SELECT id, username, fullname, email, nohp, role FROM users WHERE id = ?',
+          [id]
       );
 
-      res.status(200).json({ message: 'Profil berhasil diperbarui.', user: updatedUser[0] });
+      res.status(200).json({code:200, message: 'success', detail:'Profil berhasil diperbarui.', user: updatedUser[0] });
   } catch (error) {
       console.error('Error updating user profile:', error);
-      // Periksa jika error karena duplikat email
       if (error.code === 'ER_DUP_ENTRY') {
-          return res.status(409).json({ message: 'Email sudah digunakan oleh pengguna lain.' });
+          return res.status(409).json({code:409, message: 'failed', detail:'Email sudah digunakan oleh pengguna lain.' });
       }
-      res.status(500).json({ message: 'Terjadi kesalahan server saat memperbarui profil.' });
+      res.status(500).json({code:500, message: 'error', detail:'Terjadi kesalahan server saat memperbarui profil.' });
   }
-};
+},
 
-module.exports = {
+ getAllUsers : async (req, res) => {
+  try {
 
-  registerUser,
-  loginUser,
-  getUserProfile,
-  updateUserProfile
-};
+
+    // Mengambil semua data pengguna kecuali password
+    const [users] = await pool.execute(
+      'SELECT id, username, fullname, email, nohp, gender, role, created_at FROM users'
+    );
+
+    res.status(200).json({code: 200, message: 'success', data: users} );
+    return
+  } catch (error) {
+    console.error('Error saat mengambil semua pengguna:', error);
+    res.status(500).json({code: 200, message: 'Terjadi kesalahan server saat mengambil data pengguna.', detail: error} );
+return
+  }
+},
+
+getUserById: async (req, res) => {
+  const { id } = req.params;
+  console.log('====================================');
+  console.log(id);
+  console.log('====================================');
+
+  try {
+    const [rows] = await pool.execute(
+      'SELECT id, username, fullname, email, nohp, role FROM users WHERE id = ?',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        code: 404,
+        message: 'failed',
+        detail: 'User tidak ditemukan'
+      });
+    }
+
+    res.status(200).json({
+      code: 200,
+      message: 'success',
+      data: rows[0]
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      code: 500,
+      message: 'error',
+      detail: 'Terjadi kesalahan server'
+    });
+  }
+},
+
+
+ deleteUser : async (req, res) => {
+  const { id } = req.params; // Mengambil ID dari URL parameter
+
+  try {
+  
+
+    const [result] = await pool.execute(
+      'DELETE FROM users WHERE id = ?',
+      [id]
+    );
+
+    // Memeriksa apakah ada baris yang terhapus
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Pengguna tidak ditemukan.' });
+    }
+
+    res.status(200).json({ message: `Pengguna dengan ID ${id} berhasil dihapus.` });
+  } catch (error) {
+    console.error('Error saat menghapus pengguna:', error);
+    res.status(500).json({ message: 'Terjadi kesalahan server saat menghapus pengguna.' });
+  }
+},
+}
+// =========================================================================
+
+module.exports = user;

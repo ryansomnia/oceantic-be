@@ -1,7 +1,10 @@
 // server.js
 const express = require('express');
 const cors = require('cors'); // Import CORS middleware
+const path = require('path')
 const morgan = require('morgan'); // Import morgan untuk logging request
+const bodyParser = require('body-parser');
+
 const FileUpload = require('express-fileupload'); // Untuk penanganan upload file
 const mainApiRouter = require('./routes/route'); // Import router API utama (routes/index.js)
 const { testDbConnection } = require('./config/db'); // Import fungsi testDbConnection dari db.js
@@ -9,24 +12,15 @@ require('dotenv').config(); // Memuat variabel lingkungan dari file .env
 
 const app = express();
 
-// Middleware Global
-// Mengaktifkan CORS (Cross-Origin Resource Sharing)
-// Di produksi, Anda sebaiknya membatasi origin ke domain frontend Anda saja.
+// Middleware untuk menyajikan file statis dari folder 'public'
 app.use(cors());
-
-// Middleware untuk logging request HTTP
-app.use(morgan('dev'));
-
-// Middleware untuk parsing JSON body dari request
-app.use(express.json());
-
-// Middleware untuk parsing URL-encoded body dari request (jika ada form HTML biasa)
-app.use(express.urlencoded({ extended: true })); // Menggantikan body-parser.urlencoded
-
+app.use(express.static('public')); // Menggantikan app.use('/css', express.static(__dirname + 'public/css'))
 app.use(FileUpload());
 
-// Middleware untuk menyajikan file statis dari folder 'public'
-app.use(express.static('public')); // Menggantikan app.use('/css', express.static(__dirname + 'public/css'))
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+// Middleware untuk logging request HTTP
+app.use(morgan('dev'));
 
 // Rute Utama API dengan Prefix /oceantic/v1
 // Semua rute yang didefinisikan di routes/index.js sekarang akan diawali dengan /oceantic/v1

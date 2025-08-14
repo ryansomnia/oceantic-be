@@ -63,7 +63,9 @@ let category = {
 
   try {
     const [rows] = await pool.execute('SELECT * FROM categories WHERE eventId = ?', [id]); // Perhatikan nama kolom 'eventId'
-    res.status(200).json(rows);
+    res.status(200).json({ code: 200, message: 'success', data: rows });
+
+    // res.status(200).json(rows);
   } catch (error) {
     console.error('Error saat mendapatkan kategori berdasarkan Event ID:', error);
     res.status(500).json({ message: 'Terjadi kesalahan server.' });

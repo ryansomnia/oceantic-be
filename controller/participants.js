@@ -1,10 +1,47 @@
 // services/registrationService.js
 const pool = require('../config/db');
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs/promises');
+const moment = require('moment')
+function getFullTime() {
+  let asiaTimeStart = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Jakarta",
+  });
+  console.log(asiaTimeStart);
+  let time = moment(asiaTimeStart, "MM/DD/YYYY").format("YYYY-MM-DD hh:mm:ss");
+  console.log(time);
+  return time;
+}
+
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//       cb(null, 'uploads/');
+//   },
+//   filename: (req, file, cb) => {
+//       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//       cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+//   }
+// });
+
+// const upload = multer({
+//   storage: storage,
+//   limits: { fileSize: 5 * 1024 * 1024 }, // Batasi ukuran file hingga 5MB
+//   fileFilter: (req, file, cb) => {
+//       const filetypes = /jpeg|jpg|png/;
+//       const mimetype = filetypes.test(file.mimetype);
+//       const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+//       if (mimetype && extname) {
+//           return cb(null, true);
+//       }
+//       cb(new Error('Tipe file hanya mendukung JPG, JPEG, atau PNG!'));
+//   }
+// });
 
 
 let participants = {
+  
 // Fungsi Layanan untuk Mendaftarkan Peserta Baru
  registerSwimmer : async (req, res) => {
   // --- DEBUGGING: Log req.body saat diterima oleh backend ---
@@ -15,7 +52,7 @@ let participants = {
     user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
     club_name, stroke_category, age_category, distance_category, jenis_renang,
     emergency_contact_name, emergency_contact_phone,
-    health_info, tshirt_size, payment_status
+     payment_status
   } = req.body;
 
   // Konversi parent_consent dan rules_consent dari string ke boolean/integer
@@ -26,10 +63,16 @@ let participants = {
   if (!user_id || !event_id || !full_name || !date_of_birth || !gender || !email || !phone_number ||
       !club_name || !stroke_category || !age_category || !distance_category || !jenis_renang ||
       !emergency_contact_name || !emergency_contact_phone) {
-    return res.status(400).json({ message: 'Semua field wajib diisi (kecuali health_info, tshirt_size, payment_photo, supporting_document).' });
+    return res.status(400).json({ 
+      code:400,
+      message:"Bad Request",
+      detail: 'Semua field wajib diisi (kecuali  payment_photo, supporting_document).' });
   }
   if (!parent_consent || !rules_consent) { // Validasi setelah konversi
-    return res.status(400).json({ message: 'Anda harus menyetujui persetujuan orang tua/wali dan aturan lomba.' });
+    return res.status(400).json({ 
+      code:400,
+      message:"Bad Request",
+      detail: 'Anda harus menyetujui persetujuan orang tua/wali dan aturan lomba.' });
   }
 
   // --- Penanganan File ---
@@ -46,7 +89,10 @@ let participants = {
   // Validasi dan proses paymentPhotoFile
   if (payment_status === 'Paid') {
     if (!paymentPhoto || typeof paymentPhoto.name !== 'string' || paymentPhoto.name.length === 0 || typeof paymentPhoto.mv !== 'function') {
-      return res.status(400).json({ message: 'Foto pembayaran wajib diunggah dan valid jika status pembayaran adalah Paid.' });
+      return res.status(400).json({
+        code:400,
+        message:"Bad Request",
+        detail: 'Foto pembayaran wajib diunggah dan valid jika status pembayaran adalah Paid.' });
     }
     const allowedImageTypes = ['.png', '.jpg', '.jpeg'];
     const ext = path.extname(paymentPhoto.name).toLowerCase();
@@ -95,23 +141,16 @@ let participants = {
     }
 
     // Masukkan data pendaftaran ke database
-    const [result] = await pool.execute(
-      `INSERT INTO swimmer_registrations (
-        user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
+    let qry =`INSERT INTO swimmer_registrations (user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
         club_name, stroke_category, age_category, distance_category, jenis_renang,
         emergency_contact_name, emergency_contact_phone,
-        health_info, tshirt_size, payment_status, payment_photo_url, supporting_document_url,
+         payment_status, payment_photo_url, supporting_document_url,
         parent_consent, rules_consent
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
-        club_name, stroke_category, age_category, distance_category, jenis_renang,
-        emergency_contact_name, emergency_contact_phone,
-        health_info, tshirt_size, payment_status, paymentPhotoPath, supportingDocumentPath,
-        parent_consent, // <--- Sekarang akan menjadi 1 atau 0
-        rules_consent   // <--- Sekarang akan menjadi 1 atau 0
-      ]
-    );
+      ) VALUES (${user_id}, ${event_id}, '${full_name}', '${date_of_birth}', '${gender}', '${email}', '${phone_number}',
+        '${club_name}', '${stroke_category}', '${age_category}', '${distance_category}', '${jenis_renang}',
+         '${emergency_contact_name}', '${emergency_contact_phone}',
+          '${payment_status}', '${paymentPhotoPath}', '${supportingDocumentPath}', '${parent_consent}', '${rules_consent}')`
+    const [result] = await pool.execute(qry);
 
     res.status(201).json({
       message: 'Pendaftaran berhasil!',
@@ -136,6 +175,155 @@ let participants = {
  getRegistrationById : async (id) => {
   const [rows] = await pool.execute('SELECT * FROM swimmer_registrations WHERE id = ?', [id]);
   return rows[0];
+},
+
+getStatusPaymentById : async (req,res) => {
+  const {
+    id
+  } = req.params;
+try{
+  const [rows] = await pool.execute(`
+    SELECT a.id, b.title, a.full_name, a.payment_status, a.payment_photo_url 
+    FROM
+    oceantic.swimmer_registrations AS a 
+    INNER JOIN
+    oceantic.events AS b ON a.event_id = b.id
+    WHERE a.id = ?`, [id]);
+    console.log('====================================');
+    console.log(rows);
+    console.log('====================================');
+  res.status(200).json({ code: 200, message: 'success', detail: rows });
+}catch{
+  console.error('Error in getStatusPaymentById controller:', error);
+  res.status(500).json({ code: 500, message: 'Terjadi kesalahan server saat mendapatkan data', detail: error.message });
+
+}
+},
+
+getAllPayment : async (req,res) => {
+ 
+try{
+  const [rows] = await pool.execute(`
+    SELECT a.id, b.title, a.full_name, a.phone_number, a.payment_status, a.payment_photo_url 
+    FROM
+    oceantic.swimmer_registrations AS a 
+    INNER JOIN
+    oceantic.events AS b ON a.event_id = b.id`);
+  res.status(200).json({ code: 200, message: 'success', detail: rows });
+}catch{
+  console.error('Error in getAllPayment controller:', error);
+  res.status(500).json({ code: 500, message: 'Terjadi kesalahan server saat mendapatkan data', detail: error.message });
+
+}
+},
+ // [API BARU] Mengunggah bukti pembayaran oleh member
+ 
+  uploadPaymentProof: async (req, res) => {
+    // upload.single('payment_proof')(req, res, async (err) => {
+      const id = req.body.id;
+
+      if (id == 0 || id == null) {
+        let response = {
+          code: 400,
+          message: "Error",
+          error: "id / payment tidak terisi",
+        };
+      return  res.status(400).send(response);
+      }
+      let image = req.files.image;
+      console.log("img", image);
+      let filesize = image.size;
+      let ext = path.extname(image.name);
+      let filename = image.md5 + ext;
+      const url = `http://localhost:3025/images/${filename}`;
+      let allowedType = [".png", ".jpg", ".jpeg"];
+
+      if (!allowedType.includes(ext.toLowerCase())) {
+        return res.status(422).json({ msg: "invalid Image" });
+      }
+      if (filesize > 5000000) {
+        return res.status(422).json({ msg: " Size overload" });
+      }
+      if (image == 0 || image == null) {
+        let response = {
+          code: 400,
+          message: "Error",
+          error: "image tidak terisi",
+        };
+        res.status(400).send(response);
+        return response;
+      }
+
+    
+      image.mv(`./public/images/${filename}`, async (err) => {
+        if (err) {
+          return res.status(500).json({ msg: err.message });
+        }
+  
+        try {
+          let updateQry = `UPDATE swimmer_registrations 
+          SET payment_photo_url = ?, updated_at = ?, payment_status = 'Paid'
+          WHERE id = ? `;
+          let values = [url, getFullTime(), id];
+          let hasil = await pool.execute(updateQry, values);
+          console.log("update", hasil);
+          let response = {
+            code: 200,
+            message: "success",
+            data: "data berhasil masuk",
+          };
+          console.log(response);
+          return res.status(201).send(response);
+        } catch (err) {
+          console.log(err);
+          let response = {
+            code: 500,
+            message: "error",
+            error: err,
+          };
+          res.status(500).send(response);
+        }
+      });
+  // });
+
+  },
+  
+
+updatePaymentStatusAdmin: async (req, res) => {
+  const { id, newStatus } = req.body;
+  
+  if (!id || !newStatus) {
+    return res.status(400).json({ code: 400, message: 'ID dan status baru harus disediakan.' });
+  }
+
+  // Validasi status yang diizinkan
+  const validStatuses = ['Pending', 'Success', 'Cancelled', 'Refunded'];
+  if (!validStatuses.includes(newStatus)) {
+    return res.status(400).json({ code: 400, message: 'Status tidak valid. Gunakan: Pending, Success, atau Failed.' });
+  }
+
+  try {
+    const [result] = await pool.execute(`
+      UPDATE oceantic.swimmer_registrations
+      SET payment_status = ?
+      WHERE id = ?`,
+      [newStatus, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ code: 404, message: 'ID pendaftaran tidak ditemukan.' });
+    }
+
+    res.status(200).json({ 
+      code: 200, 
+      message: 'Status pembayaran berhasil diperbarui.',
+      id: id,
+      newStatus: newStatus
+    });
+  } catch (error) {
+    console.error('Error in updatePaymentStatusAdmin controller:', error);
+    res.status(500).json({ code: 500, message: 'Terjadi kesalahan server saat memperbarui status pembayaran.', detail: error.message });
+  }
 },
 
 // Fungsi Layanan untuk Memperbarui Pendaftaran
