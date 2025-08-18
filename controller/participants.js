@@ -193,7 +193,92 @@ let participants = {
     } finally {
       conn.release();
     }
-  },  
+  },
+  uploadPayment: async (req, res) => {
+    console.log("Request Body di Backend (uploadPayment):", req.body);
+  
+    const { registration_id } = req.body;
+  
+    if (!registration_id) {
+      return res.status(400).json({
+        code: 400,
+        message: "Bad Request",
+        detail: "registration_id wajib diisi."
+      });
+    }
+  
+    // --- File Upload Handling ---
+    let paymentPhotoFile = req.files ? req.files.payment_photo : null;
+    if (!paymentPhotoFile) {
+      return res.status(400).json({
+        code: 400,
+        message: "Bad Request",
+        detail: "Bukti pembayaran (payment_photo) wajib diunggah."
+      });
+    }
+  
+    const paymentPhoto = Array.isArray(paymentPhotoFile) ? paymentPhotoFile[0] : paymentPhotoFile;
+  
+    if (typeof paymentPhoto.mv !== "function") {
+      return res.status(400).json({ message: "File foto pembayaran tidak valid." });
+    }
+  
+    const allowedImageTypes = [".png", ".jpg", ".jpeg"];
+    const ext = path.extname(paymentPhoto.name).toLowerCase();
+    if (!allowedImageTypes.includes(ext)) {
+      return res.status(422).json({ message: "Tipe file foto pembayaran tidak valid." });
+    }
+    if (paymentPhoto.size > 5000000) {
+      return res.status(422).json({ message: "Ukuran foto pembayaran terlalu besar (maks 5MB)." });
+    }
+  
+    let paymentPhotoPath = null;
+  
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+  
+      // Simpan file bukti pembayaran
+      const uploadDir = path.join(__dirname, "../public/uploads/payments");
+      await fs.mkdir(uploadDir, { recursive: true });
+      const fileName = `${Date.now()}-${paymentPhoto.name}`;
+      paymentPhotoPath = `/uploads/payments/${fileName}`;
+      await paymentPhoto.mv(path.join(uploadDir, fileName));
+  
+      // Update swimmer_registrations
+      const [updateResult] = await conn.query(
+        `UPDATE swimmer_registrations 
+         SET payment_status = ?, payment_photo_url = ?
+         WHERE id = ?`,
+        ["Paid", paymentPhotoPath, registration_id]
+      );
+  
+      if (updateResult.affectedRows === 0) {
+        await conn.rollback();
+        return res.status(404).json({ message: "Registrasi tidak ditemukan." });
+      }
+  
+      await conn.commit();
+  
+      res.status(200).json({
+        message: "Upload pembayaran berhasil!",
+        registration_id,
+        paymentPhotoUrl: paymentPhotoPath
+      });
+    } catch (error) {
+      await conn.rollback();
+      console.error("Error saat upload pembayaran:", error);
+  
+      if (paymentPhotoPath) {
+        await fs.unlink(path.join(__dirname, "../public", paymentPhotoPath)).catch(() => {});
+      }
+  
+      res.status(500).json({ message: "Terjadi kesalahan server saat upload pembayaran." });
+    } finally {
+      conn.release();
+    }
+  },
+    
 getBukuAcara : async (req, res) => {
   const { eventId } = req.params;
 
@@ -359,7 +444,7 @@ updatePaymentStatusAdmin: async (req, res) => {
   }
 
   // Validasi status yang diizinkan
-  const validStatuses = ['Pending', 'Success', 'Cancelled', 'Refunded'];
+  const validStatuses = ['Pending','Paid', 'Success', 'Cancelled', 'Refunded'];
   if (!validStatuses.includes(newStatus)) {
     return res.status(400).json({ code: 400, message: 'Status tidak valid. Gunakan: Pending, Success, atau Failed.' });
   }

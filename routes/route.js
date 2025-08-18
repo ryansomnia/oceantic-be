@@ -74,13 +74,15 @@ router.post('/login', user.loginUser);
 router.post('/createEvent', verifyToken, authorizeRoles(['admin']), event.createEvent);
 
 router.post('/registrations', verifyToken, authorizeRoles(['member']), participant.registerSwimmer);
+router.post('/uploadPayment', verifyToken, authorizeRoles(['member']), participant.uploadPayment);
+
 router.get("getBukuAcara/:eventId", participant.getBukuAcara);
 
 
 router.get('/getStatusPaymentById/:id', participant.getStatusPaymentById);
 router.get('/getAllPayment', participant.getAllPayment);
 
-router.post('/uploadPaymentProof',participant.uploadPaymentProof);
+// router.post('/uploadPaymentProof',participant.uploadPaymentProof);
 
 // Rute untuk mengedit status pembayaran (admin)
 // Anda mungkin ingin menambahkan middleware otentikasi admin di sini
