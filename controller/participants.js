@@ -41,133 +41,195 @@ function getFullTime() {
 
 
 let participants = {
+  getAllParticipants : async (req, res) => {
+ 
+    try {
+      const [rows] = await pool.execute('SELECT * FROM swimmer_registrations'); // Perhatikan nama kolom 'eventId'
+      res.status(200).json({ code: 200, message: 'success', data: rows });
   
-// Fungsi Layanan untuk Mendaftarkan Peserta Baru
- registerSwimmer : async (req, res) => {
-  // --- DEBUGGING: Log req.body saat diterima oleh backend ---
-  console.log('Request Body di Backend:', req.body);
-  // --- AKHIR DEBUGGING ---
-
-  const {
-    user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
-    club_name, stroke_category, age_category, distance_category, jenis_renang,
-    emergency_contact_name, emergency_contact_phone,
-     payment_status
-  } = req.body;
-
-  // Konversi parent_consent dan rules_consent dari string ke boolean/integer
-  const parent_consent = req.body.parent_consent === 'true' ? 1 : 0;
-  const rules_consent = req.body.rules_consent === 'true' ? 1 : 0;
-
-  // --- Validasi Input ---
-  if (!user_id || !event_id || !full_name || !date_of_birth || !gender || !email || !phone_number ||
-      !club_name || !stroke_category || !age_category || !distance_category || !jenis_renang ||
-      !emergency_contact_name || !emergency_contact_phone) {
-    return res.status(400).json({ 
-      code:400,
-      message:"Bad Request",
-      detail: 'Semua field wajib diisi (kecuali  payment_photo, supporting_document).' });
-  }
-  if (!parent_consent || !rules_consent) { // Validasi setelah konversi
-    return res.status(400).json({ 
-      code:400,
-      message:"Bad Request",
-      detail: 'Anda harus menyetujui persetujuan orang tua/wali dan aturan lomba.' });
-  }
-
-  // --- Penanganan File ---
-  let paymentPhotoFile = req.files ? req.files.payment_photo : null;
-  let supportingDocumentFile = req.files ? req.files.supporting_document : null;
-
-  let paymentPhotoPath = null;
-  let supportingDocumentPath = null;
-
-  // Safely get the file object, handling potential arrays from express-fileupload.
-  const paymentPhoto = (Array.isArray(paymentPhotoFile) ? paymentPhotoFile[0] : paymentPhotoFile);
-  const supportingDocument = (Array.isArray(supportingDocumentFile) ? supportingDocumentFile[0] : supportingDocumentFile);
-
-  // Validasi dan proses paymentPhotoFile
-  if (payment_status === 'Paid') {
-    if (!paymentPhoto || typeof paymentPhoto.name !== 'string' || paymentPhoto.name.length === 0 || typeof paymentPhoto.mv !== 'function') {
+      // res.status(200).json(rows);
+    } catch (error) {
+      console.error('Error saat mendapatkan swimmer_registrations ', error);
+      res.status(500).json({ message: 'Terjadi kesalahan server.' });
+    }
+  },
+  registerSwimmer: async (req, res) => {
+    console.log("Request Body di Backend:", req.body);
+  
+    const {
+      user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
+      club_name, age_category, distance_category, jenis_renang,
+      emergency_contact_name, emergency_contact_phone,
+      selected_races // <-- array of race_category_id
+    } = req.body;
+  
+    // Konversi consent ke boolean/integer
+    const parent_consent = req.body.parent_consent === "true" ? 1 : 0;
+    const rules_consent = req.body.rules_consent === "true" ? 1 : 0;
+  
+    // Validasi input utama
+    if (!user_id || !event_id || !full_name || !date_of_birth || !gender || !email || !phone_number ||
+        !club_name || !emergency_contact_name || !emergency_contact_phone) {
       return res.status(400).json({
-        code:400,
-        message:"Bad Request",
-        detail: 'Foto pembayaran wajib diunggah dan valid jika status pembayaran adalah Paid.' });
+        code: 400,
+        message: "Bad Request",
+        detail: "Semua field wajib diisi (kecuali payment_photo)."
+      });
     }
-    const allowedImageTypes = ['.png', '.jpg', '.jpeg'];
-    const ext = path.extname(paymentPhoto.name).toLowerCase();
-    if (!allowedImageTypes.includes(ext)) {
-      return res.status(422).json({ message: 'Tipe file foto pembayaran tidak valid. Hanya PNG, JPG, JPEG yang diizinkan.' });
+    if (!parent_consent || !rules_consent) {
+      return res.status(400).json({
+        code: 400,
+        message: "Bad Request",
+        detail: "Anda harus menyetujui persetujuan orang tua/wali dan aturan lomba."
+      });
     }
-    if (paymentPhoto.size > 5000000) { // 5MB limit
-      return res.status(422).json({ message: 'Ukuran foto pembayaran terlalu besar (maks 5MB).' });
+  
+    // --- File Upload (Supporting Document wajib) ---
+    let supportingDocumentFile = req.files ? req.files.supporting_document : null;
+    if (!supportingDocumentFile) {
+      return res.status(400).json({
+        code: 400,
+        message: "Bad Request",
+        detail: "Dokumen pendukung (akta lahir/kartu pelajar) wajib diunggah."
+      });
     }
-  }
-
-  // Validasi dan proses supportingDocumentFile (jika ada)
-  if (supportingDocument) {
-    if (typeof supportingDocument.name !== 'string' || supportingDocument.name.length === 0 || typeof supportingDocument.mv !== 'function') {
-        // Jika file ada tapi tidak valid, bisa diabaikan atau dikembalikan error
-        console.warn('Peringatan: supportingDocumentFile diberikan tetapi bukan objek file yang valid.');
-        supportingDocument = null; // Set ke null agar tidak diproses
-    } else {
-        const allowedDocTypes = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'];
-        const ext = path.extname(supportingDocument.name).toLowerCase();
-        if (!allowedDocTypes.includes(ext)) {
-            return res.status(422).json({ message: 'Tipe file dokumen pendukung tidak valid.' });
-        }
-        if (supportingDocument.size > 10000000) { // 10MB limit (contoh)
-            return res.status(422).json({ message: 'Ukuran dokumen pendukung terlalu besar (maks 10MB).' });
-        }
+  
+    let supportingDocumentPath = null;
+    const supportingDocument = Array.isArray(supportingDocumentFile) ? supportingDocumentFile[0] : supportingDocumentFile;
+  
+    if (typeof supportingDocument.mv !== "function") {
+      return res.status(400).json({ message: "File dokumen pendukung tidak valid." });
     }
-  }
-
-  try {
-    // Pindahkan file ke direktori publik
-    if (paymentPhoto) {
-      const uploadDir = path.join(__dirname, '../public/uploads/payments');
-      await fs.mkdir(uploadDir, { recursive: true });
-      const fileName = `${Date.now()}-${paymentPhoto.name}`;
-      paymentPhotoPath = `/uploads/payments/${fileName}`;
-      await paymentPhoto.mv(path.join(uploadDir, fileName));
+  
+    const allowedDocTypes = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"];
+    const ext = path.extname(supportingDocument.name).toLowerCase();
+    if (!allowedDocTypes.includes(ext)) {
+      return res.status(422).json({ message: "Tipe file dokumen pendukung tidak valid." });
     }
-
-    if (supportingDocument) {
-      const uploadDir = path.join(__dirname, '../public/uploads/documents');
+    if (supportingDocument.size > 10000000) {
+      return res.status(422).json({ message: "Ukuran dokumen pendukung terlalu besar (maks 10MB)." });
+    }
+  
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+  
+      // Simpan file supporting doc
+      const uploadDir = path.join(__dirname, "../public/uploads/documents");
       await fs.mkdir(uploadDir, { recursive: true });
       const fileName = `${Date.now()}-${supportingDocument.name}`;
       supportingDocumentPath = `/uploads/documents/${fileName}`;
       await supportingDocument.mv(path.join(uploadDir, fileName));
+  
+      // Insert ke swimmer_registrations
+      const [regResult] = await conn.query(
+        `INSERT INTO swimmer_registrations 
+        (user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
+         club_name, age_category, distance_category, jenis_renang,
+         emergency_contact_name, emergency_contact_phone,
+         payment_status, supporting_document_url,
+         parent_consent, rules_consent)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
+          club_name, age_category, distance_category, jenis_renang,
+          emergency_contact_name, emergency_contact_phone,
+          "Pending", // default, belum bayar
+          supportingDocumentPath,
+          parent_consent, rules_consent
+        ]
+      );
+  
+      const registrationId = regResult.insertId;
+  
+      // Insert gaya yang dipilih ke swimmer_events
+      if (selected_races && Array.isArray(selected_races)) {
+        for (const raceId of selected_races) {
+          await conn.query(
+            `INSERT INTO swimmer_events (registration_id, race_category_id) VALUES (?, ?)`,
+            [registrationId, raceId]
+          );
+        }
+  
+        // Hitung biaya sesuai rule
+        const [rows] = await conn.query(
+          `SELECT COUNT(*) as jumlah_gaya FROM swimmer_events WHERE registration_id = ?`,
+          [registrationId]
+        );
+        const jumlah_gaya = rows[0].jumlah_gaya;
+  
+        let total_fee = 0;
+        if (jumlah_gaya >= 2) {
+          total_fee = 300000 + (jumlah_gaya - 2) * 125000;
+        }
+  
+        await conn.query(
+          `UPDATE swimmer_registrations SET total_fee = ? WHERE id = ?`,
+          [total_fee, registrationId]
+        );
+  
+        await conn.commit();
+  
+        return res.status(201).json({
+          message: "Registrasi berhasil!",
+          registrationId,
+          total_fee,
+          supportingDocumentUrl: supportingDocumentPath
+        });
+      } else {
+        await conn.rollback();
+        return res.status(400).json({ message: "selected_races wajib diisi minimal 2 gaya." });
+      }
+  
+    } catch (error) {
+      await conn.rollback();
+      console.error("Error saat mendaftarkan peserta:", error);
+  
+      if (supportingDocumentPath) {
+        await fs.unlink(path.join(__dirname, "../public", supportingDocumentPath)).catch(() => {});
+      }
+  
+      res.status(500).json({ message: "Terjadi kesalahan server saat mendaftarkan peserta." });
+    } finally {
+      conn.release();
     }
+  },  
+getBukuAcara : async (req, res) => {
+  const { eventId } = req.params;
 
-    // Masukkan data pendaftaran ke database
-    let qry =`INSERT INTO swimmer_registrations (user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
-        club_name, stroke_category, age_category, distance_category, jenis_renang,
-        emergency_contact_name, emergency_contact_phone,
-         payment_status, payment_photo_url, supporting_document_url,
-        parent_consent, rules_consent
-      ) VALUES (${user_id}, ${event_id}, '${full_name}', '${date_of_birth}', '${gender}', '${email}', '${phone_number}',
-        '${club_name}', '${stroke_category}', '${age_category}', '${distance_category}', '${jenis_renang}',
-         '${emergency_contact_name}', '${emergency_contact_phone}',
-          '${payment_status}', '${paymentPhotoPath}', '${supportingDocumentPath}', '${parent_consent}', '${rules_consent}')`
-    const [result] = await pool.execute(qry);
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+          rc.race_number AS acara,
+          CONCAT(rc.distance, ' ', rc.swim_style, ' ', rc.age_group_class, ' ', rc.gender_category) AS lomba,
+          hd.heat_number AS seri,
+          ROW_NUMBER() OVER (PARTITION BY hd.id ORDER BY 
+                                CASE 
+                                  WHEN hs.result_time = '' OR hs.result_time IS NULL OR hs.result_time = 'NT' 
+                                    THEN 9999
+                                  ELSE CAST(REPLACE(hs.result_time, ':', '') AS DECIMAL(10,2))
+                                END ASC
+                           ) AS rank_no,
+          hs.lane_number AS lane,
+          hs.swimmer_name AS nama,
+          hs.club_name AS klub,
+          hs.qet_time AS get_time,
+          hs.result_time AS hasil
+      FROM heat_swimmers hs
+      JOIN heat_details hd ON hs.heat_detail_id = hd.id
+      JOIN race_categories rc ON hd.race_category_id = rc.id
+      JOIN events e ON rc.event_id = e.id
+      WHERE e.id = ?
+      ORDER BY rc.race_number, hd.heat_number, rank_no
+    `, [eventId]);
 
-    res.status(201).json({
-      message: 'Pendaftaran berhasil!',
-      registrationId: result.insertId,
-      paymentPhotoUrl: paymentPhotoPath,
-      supportingDocumentUrl: supportingDocumentPath
+    res.json({
+      code: 200,
+      message: "Data buku acara berhasil diambil",
+      detail: rows
     });
-  } catch (error) {
-    console.error('Error saat mendaftarkan peserta:', error);
-    // Jika terjadi error, hapus file yang mungkin sudah terupload
-    if (paymentPhotoPath) {
-      await fs.unlink(path.join(__dirname, '../public', paymentPhotoPath)).catch(err => console.warn('Gagal menghapus file pembayaran:', err.message));
-    }
-    if (supportingDocumentPath) {
-      await fs.unlink(path.join(__dirname, '../public', supportingDocumentPath)).catch(err => console.warn('Gagal menghapus dokumen pendukung:', err.message));
-    }
-    res.status(500).json({ message: 'Terjadi kesalahan server saat mendaftarkan peserta.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 },
 

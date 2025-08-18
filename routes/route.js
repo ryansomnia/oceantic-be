@@ -62,7 +62,7 @@ router.delete('/deleteUser/:id',verifyToken, authorizeRoles(['admin']), user.del
 router.post('/users/me', verifyToken, user.getUserProfile);
 router.put('/users/me', verifyToken, user.updateUserProfile);
 
-// router.get('/getAllParticipants', participant.getAllParticipants);
+router.get('/getAllParticipants', participant.getAllParticipants);
 router.get('/getRegistrationById/:id', participant.getRegistrationById);
 
 // router.put('/editParticipant/:id', participant.editParticipant);
@@ -74,6 +74,9 @@ router.post('/login', user.loginUser);
 router.post('/createEvent', verifyToken, authorizeRoles(['admin']), event.createEvent);
 
 router.post('/registrations', verifyToken, authorizeRoles(['member']), participant.registerSwimmer);
+router.get("getBukuAcara/:eventId", participant.getBukuAcara);
+
+
 router.get('/getStatusPaymentById/:id', participant.getStatusPaymentById);
 router.get('/getAllPayment', participant.getAllPayment);
 
@@ -175,6 +178,25 @@ router.get('/getRaceCategoryById/:id', verifyToken, authorizeRoles(['admin']), r
 router.get('/getAllRaceCategoriesByEventId/:id', verifyToken, authorizeRoles(['admin']), raceCategories.getAllRaceCategoriesByEventId);
 router.put('/updateRaceCategory/:id', verifyToken, authorizeRoles(['admin']), raceCategories.updateRaceCategory);
 router.delete('/deleteRaceCategory/:id', verifyToken, authorizeRoles(['admin']), raceCategories.deleteRaceCategory);
+
+
+
+
+
+
+
+// ====================================
+
+// percobaan buku acara
+
+
+
+
+// ====================================
+
+
+
+
 
 
 // Contoh Rute yang Dilindungi (opsional)

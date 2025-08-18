@@ -6,6 +6,7 @@ require('dotenv').config();
 
 // Fungsi untuk Registrasi Pengguna
 let user = {
+ 
  registerUser : async (req, res) => {
   const { username, password, fullname, email, nohp, gender, role } = req.body;
 
@@ -35,6 +36,8 @@ let user = {
     res.status(500).json({ message: 'Terjadi kesalahan server saat registrasi.' });
   }
 },
+
+
 
 // Fungsi untuk Login Pengguna
  loginUser : async (req, res) => {
