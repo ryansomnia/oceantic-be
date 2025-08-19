@@ -75,8 +75,15 @@ router.post('/createEvent', verifyToken, authorizeRoles(['admin']), event.create
 
 router.post('/registrations', verifyToken, authorizeRoles(['member']), participant.registerSwimmer);
 router.post('/uploadPayment', verifyToken, authorizeRoles(['member']), participant.uploadPayment);
+router.put('/updatePaymentStatusAdmin', participant.updatePaymentStatusAdmin);
+router.get('/getStartList/:event_id',  event.getStartList);
+router.post('/generateEventBookPdf', verifyToken, authorizeRoles(['member','admin']), event.generateEventBookPdf);
+router.post('/generateEventBookExcel', verifyToken, authorizeRoles(['member','admin']), event.generateEventBookExcel);
 
-router.get("getBukuAcara/:eventId", participant.getBukuAcara);
+// router.get("/startlist/pdf/:event_id",verifyToken, authorizeRoles(['member']), event.generateEventBookPdf);
+
+
+// router.get("getBukuAcara/:eventId", participant.getBukuAcara);
 
 
 router.get('/getStatusPaymentById/:id', participant.getStatusPaymentById);
@@ -86,7 +93,6 @@ router.get('/getAllPayment', participant.getAllPayment);
 
 // Rute untuk mengedit status pembayaran (admin)
 // Anda mungkin ingin menambahkan middleware otentikasi admin di sini
-router.put('/updatePaymentStatusAdmin', participant.updatePaymentStatusAdmin);
 
 
 // Tetapkan Detail Seri / Heat
@@ -126,8 +132,7 @@ router.delete('/deleteHeatSwimmer/:id', verifyToken, authorizeRoles(['admin']), 
 // Tabel yang diakses: events, race_categories, heat_details, heat_swimmers.
 // Contoh Aksi: Aplikasi frontend memanggil API untuk mendapatkan buku acara event_id tertentu.
 // API/Fungsi Terkait: getEventBook (GET /oceantic/v1/events/:eventId/book) yang memanggil stored procedure GetEventBookData.
-router.post('/getEventBook', event.getEventBook);
-router.post('/generateEventBookPdf', verifyToken, authorizeRoles(['member','admin']), event.generateEventBookPdf);
+// router.post('/getEventBook', event.getEventBook);
 
 // Contoh Aksi: Untuk race_category_id dari "Acara 120, 25M, Papan Bebas, Golongan D, Putri", Admin membuat "Seri 1 Grup a" dan "Seri 1 Grup b" di tabel heat_details.
 // router.get('/registrations/:id', verifyToken, authorizeRoles(['admin', 'member']), getRegistrationById);

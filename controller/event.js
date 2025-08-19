@@ -4,83 +4,143 @@ const axios = require('axios');
 const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs/promises'); // Tambahkan modul fs/promises
+const ExcelJS = require("exceljs");
+
+// const PDFDocument = require("pdfkit");
 
 
+// const escape = (s) => {
+//   if (s === undefined || s === null) return "";
+//   return String(s)
+//     .replace(/&/g, "&amp;")
+//     .replace(/</g, "&lt;")
+//     .replace(/>/g, "&gt;");
+// };
+// // const buildHtmlFromEventBook = (eventBook, template) => {
+// //   const { namaEvent, date, location, detailCompetition } = eventBook;
+// //   const formattedDate = new Date(date).toLocaleDateString("id-ID", {
+// //     day: "2-digit",
+// //     month: "long",
+// //     year: "numeric",
+// //   });
+// //   const currentDate = new Date().toLocaleDateString("id-ID");
 
-const escape = (s) => {
-  if (s === undefined || s === null) return "";
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-};
-const buildHtmlFromEventBook = (eventBook, template) => {
-  const { namaEvent, date, location, detailCompetition } = eventBook;
-  const formattedDate = new Date(date).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
+// //   const competitionHtml = (detailCompetition || [])
+// //     .map((comp) => {
+// //       const headerText = `Acara ${escape(comp.acara)} | ${escape(
+// //         comp.jarak
+// //       )} ${escape(comp.gaya)} - ${escape(comp.gender)} | Golongan: ${escape(
+// //         comp.golongan
+// //       )}`;
+
+// //       const swimmersRows = (comp.detailSwimmer || [])
+// //         .map((sw) => {
+// //           return `
+// //             <tr>
+// //               <td class="cell small">${escape(sw.seri)}</td>
+// //               <td class="cell small">${escape(sw.grup)}</td>
+// //               <td class="cell small">${escape(sw.lint)}</td>
+// //               <td class="cell name">${escape(sw.nama)}</td>
+// //               <td class="cell small">${escape(sw.club)}</td>
+// //               <td class="cell school">${escape(sw.qet)}</td>
+// //               <td class="cell small">${escape(sw.hasil)}</td>
+// //             </tr>
+// //           `;
+// //         })
+// //         .join("");
+
+// //       return `
+// //         <div class="competition-section">
+// //           <div class="competition-header">${headerText}</div>
+// //           <div class="table-wrapper">
+// //             <table>
+// //               <thead>
+// //                 <tr>
+// //                   <th>Seri</th>
+// //                   <th>Grup</th>
+// //                   <th>Lint</th>
+// //                   <th>Nama</th>
+// //                   <th>Asal Sekolah/Club</th>
+// //                   <th>QET</th>
+// //                   <th>Hasil</th>
+// //                 </tr>
+// //               </thead>
+// //               <tbody>
+// //                 ${swimmersRows || `<tr><td colspan="7" style="text-align:center;">Tidak ada peserta</td></tr>`}
+// //               </tbody>
+// //             </table>
+// //           </div>
+// //         </div>
+// //       `;
+// //     })
+// //     .join("");
+
+// //   // Mengisi placeholder dalam template dengan data acara
+// //   return template
+// //     .replace('{{namaEvent}}', escape(namaEvent))
+// //     .replace('{{formattedDate}}', escape(formattedDate))
+// //     .replace('{{location}}', escape(location))
+// //     .replace('{{competitionHtml}}', competitionHtml)
+// //     .replace('{{currentDate}}', currentDate);
+// // };
+// function buildHtmlFromEventBook(eventDetail, swimmers, htmlTemplate) {
+//   // Render header event
+//   let html = htmlTemplate
+//     .replace("{{EVENT_TITLE}}", eventDetail.title)
+//     .replace("{{EVENT_DATE}}", new Date(eventDetail.event_date).toLocaleDateString("id-ID"))
+//     .replace("{{EVENT_LOCATION}}", eventDetail.location);
+
+//   // Render daftar startlist
+//   const rowsHtml = swimmers.map((s, i) => `
+//     <tr>
+//       <td>${i + 1}</td>
+//       <td>${s.full_name}</td>
+//       <td>${s.club_name}</td>
+//       <td>${s.swim_style}</td>
+//       <td>${s.distance}</td>
+//       <td>${s.age_group_class}</td>
+//       <td>${s.gender_category}</td>
+//     </tr>
+//   `).join("");
+
+//   html = html.replace("{{STARTLIST_ROWS}}", rowsHtml);
+
+//   return html;
+// }
+
+function assignLaneAndHeat(swimmers, lanesPerHeat = 8) {
+  const heats = [];
+  let currentHeat = [];
+  let heatNumber = 1;
+
+  swimmers.forEach((swimmer, index) => {
+    // Tentukan lane (1 - lanesPerHeat)
+    const lane = (index % lanesPerHeat) + 1;
+
+    // Tambahkan data lane ke swimmer
+    const swimmerWithLane = {
+      ...swimmer,
+      lane,
+      heat: heatNumber,
+    };
+
+    currentHeat.push(swimmerWithLane);
+
+    // Kalau heat sudah penuh -> push ke heats dan reset
+    if (lane === lanesPerHeat || index === swimmers.length - 1) {
+      heats.push({
+        heatNumber,
+        swimmers: currentHeat,
+      });
+      currentHeat = [];
+      heatNumber++;
+    }
   });
-  const currentDate = new Date().toLocaleDateString("id-ID");
 
-  const competitionHtml = (detailCompetition || [])
-    .map((comp) => {
-      const headerText = `Acara ${escape(comp.acara)} | ${escape(
-        comp.jarak
-      )} ${escape(comp.gaya)} - ${escape(comp.gender)} | Golongan: ${escape(
-        comp.golongan
-      )}`;
+  return heats;
+}
 
-      const swimmersRows = (comp.detailSwimmer || [])
-        .map((sw) => {
-          return `
-            <tr>
-              <td class="cell small">${escape(sw.seri)}</td>
-              <td class="cell small">${escape(sw.grup)}</td>
-              <td class="cell small">${escape(sw.lint)}</td>
-              <td class="cell name">${escape(sw.nama)}</td>
-              <td class="cell small">${escape(sw.club)}</td>
-              <td class="cell school">${escape(sw.qet)}</td>
-              <td class="cell small">${escape(sw.hasil)}</td>
-            </tr>
-          `;
-        })
-        .join("");
-
-      return `
-        <div class="competition-section">
-          <div class="competition-header">${headerText}</div>
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Seri</th>
-                  <th>Grup</th>
-                  <th>Lint</th>
-                  <th>Nama</th>
-                  <th>Asal Sekolah/Club</th>
-                  <th>QET</th>
-                  <th>Hasil</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${swimmersRows || `<tr><td colspan="7" style="text-align:center;">Tidak ada peserta</td></tr>`}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
-
-  // Mengisi placeholder dalam template dengan data acara
-  return template
-    .replace('{{namaEvent}}', escape(namaEvent))
-    .replace('{{formattedDate}}', escape(formattedDate))
-    .replace('{{location}}', escape(location))
-    .replace('{{competitionHtml}}', competitionHtml)
-    .replace('{{currentDate}}', currentDate);
-};
+module.exports = assignLaneAndHeat;
 
 let event = {
  createEvent : async (req, res) => {
@@ -212,38 +272,390 @@ getEventBook: async (req, res) => {
   }
 },
 
+//  getStartList: async (req, res) => {
+//     const { event_id } = req.params;
 
-// Fungsi utama untuk menghasilkan PDF
+//     try {
+//       const [rows] = await pool.query(
+//         `
+//         SELECT 
+//           rc.id AS race_id,
+//           rc.race_number,
+//           rc.distance,
+//           rc.swim_style,
+//           rc.age_group_class,
+//           rc.gender_category,
+//           sr.full_name,
+//           sr.club_name,
+//           sr.date_of_birth,
+//           sr.gender,
+//           sr.id AS registration_id
+//         FROM swimmer_events se
+//         INNER JOIN swimmer_registrations sr ON se.registration_id = sr.id
+//         INNER JOIN race_categories rc ON se.race_category_id = rc.id
+//         WHERE sr.event_id = ? AND sr.payment_status = 'Success'
+//         ORDER BY rc.race_number, sr.full_name
+//         `,
+//         [event_id]
+//       );
 
- 
-generateEventBookPdf :async (req, res) => {
+//       // Group by race_number
+//       const startList = {};
+//       rows.forEach(row => {
+//         const raceKey = `Acara ${row.race_number} | ${row.distance} ${row.swim_style} ${row.age_group_class} ${row.gender_category}`;
+//         if (!startList[raceKey]) {
+//           startList[raceKey] = [];
+//         }
+//         startList[raceKey].push({
+//           full_name: row.full_name,
+//           club_name: row.club_name,
+//           gender: row.gender,
+//           date_of_birth: row.date_of_birth,
+//           registration_id: row.registration_id
+//         });
+//       });
+
+//       res.status(200).json({
+//         code: 200,
+//         message: "Start List berhasil di-generate.",
+//         event_id,
+//         startList
+//       });
+//     } catch (error) {
+//       console.error("Error generate start list:", error);
+//       res.status(500).json({
+//         code: 500,
+//         message: "Terjadi kesalahan server saat generate start list.",
+//         detail: error.message
+//       });
+//     }
+//   },
+
+ getStartList : async (req, res) => {
+  try {
+    const eventId = Number(req.params.event_id || req.query.event_id || req.body.event_id);
+    if (!Number.isInteger(eventId)) {
+      return res.status(400).json({ message: 'eventId tidak valid' });
+    }
+
+    // Ambil data dasar peserta per lomba
+    const [rows] = await pool.execute(`
+      SELECT 
+        rc.id AS race_id,
+        rc.race_number,
+        rc.distance,
+        rc.swim_style,
+        rc.age_group_class,
+        rc.gender_category,
+        sr.full_name,
+        sr.club_name,
+        sr.id AS registration_id
+      FROM swimmer_events se
+      INNER JOIN swimmer_registrations sr ON se.registration_id = sr.id
+      INNER JOIN race_categories rc ON se.race_category_id = rc.id
+      WHERE sr.event_id = ? AND sr.payment_status IN ('Paid','Success')
+      ORDER BY rc.race_number, sr.full_name
+    `, [eventId]);
+
+    if (!rows.length) {
+      return res.status(200).json({ message: 'Belum ada peserta yang terdaftar.' });
+    }
+
+    // Grouping per race
+    const startList = {};
+    rows.forEach(row => {
+      const raceKey = `Acara ${row.race_number} | ${row.distance} ${row.swim_style} ${row.age_group_class} ${row.gender_category}`;
+      if (!startList[raceKey]) startList[raceKey] = [];
+      startList[raceKey].push({
+        registration_id: row.registration_id,
+        full_name: row.full_name,
+        club_name: row.club_name
+      });
+    });
+
+    // Tambahkan pembagian ke Seri, Grup, Lintasan
+    const formattedStartList = {};
+    Object.keys(startList).forEach(raceKey => {
+      const swimmers = startList[raceKey];
+      const raceResult = [];
+
+      let seriCounter = 1;
+
+      for (let i = 0; i < swimmers.length; i += 16) {
+        const seriSwimmers = swimmers.slice(i, i + 16);
+
+        // Bagi ke grup A-D
+        const groupLabels = ['A', 'B', 'C', 'D'];
+        let groupIndex = 0;
+
+        for (let j = 0; j < seriSwimmers.length; j += 4) {
+          const groupSwimmers = seriSwimmers.slice(j, j + 4);
+
+          groupSwimmers.forEach((swimmer, laneIdx) => {
+            raceResult.push({
+              seri: seriCounter,
+              group: groupLabels[groupIndex],
+              lane: laneIdx + 1,
+              full_name: swimmer.full_name,
+              club_name: swimmer.club_name,
+              qet: '',   // kolom kosong untuk panitia
+              hasil: ''  // kolom kosong untuk panitia
+            });
+          });
+
+          groupIndex++;
+        }
+
+        seriCounter++;
+      }
+
+      formattedStartList[raceKey] = raceResult;
+    });
+
+    return res.status(200).json({
+      code: 200,
+      message: 'Start List berhasil di-generate.',
+      event_id: eventId,
+      startList: formattedStartList
+    });
+
+  } catch (err) {
+    console.error('Error getStartList:', err);
+    res.status(500).json({ message: 'Terjadi kesalahan server.', detail: err.message });
+  }
+},
+
+//   try {
+//     const { eventId } = req.body;
+//     if (!eventId) {
+//       return res.status(400).json({ message: "eventId harus disediakan di body request." });
+//     }
+
+//     // 1. Ambil detail event (kop buku acara)
+//     const [eventRows] = await pool.query(
+//       `SELECT title, event_date, location 
+//        FROM oceantic.events 
+//        WHERE id = ?`,
+//       [eventId]
+//     );
+//     if (eventRows.length === 0) {
+//       return res.status(404).json({ message: "Event tidak ditemukan." });
+//     }
+//     const eventData = eventRows[0];
+
+//     // 2. Ambil start list dari API kita sendiri
+//     const apiResponse = await axios.get(
+//       `http://localhost:3025/oceantic/v1/getStartList/${eventId}`
+//     );
+//     const startList = apiResponse?.data?.startList;
+//     if (!startList || Object.keys(startList).length === 0) {
+//       return res.status(404).json({ message: "Belum ada peserta yang terdaftar." });
+//     }
+
+//     // 3. Bangun HTML
+//     let htmlContent = `
+//       <html>
+//       <head>
+//         <style>
+//           body { font-family: Arial, sans-serif; }
+//           h1, h2, h3 { text-align: center; }
+//           table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+//           th, td { border: 1px solid #000; padding: 6px; text-align: center; }
+//           th { background-color: #f2f2f2; }
+//           .event-title { margin-top: 40px; font-size: 18px; }
+//         </style>
+//       </head>
+//       <body>
+//         <h1>${eventData.title}</h1>
+//         <h3>${new Date(eventData.event_date).toLocaleDateString("id-ID")} | ${eventData.location}</h3>
+//     `;
+
+//     // Loop per lomba
+//     for (const [raceName, seriesList] of Object.entries(startList)) {
+//       htmlContent += `<h2 class="event-title">${raceName}</h2>`;
+
+//       seriesList.forEach(series => {
+//         htmlContent += `<h3>Seri ${series.series}</h3>`;
+//         htmlContent += `
+//           <table>
+//             <thead>
+//               <tr>
+//                 <th>Seri</th>
+//                 <th>Grup</th>
+//                 <th>Lane</th>
+//                 <th>Nama</th>
+//                 <th>Club</th>
+//                 <th>QET</th>
+//                 <th>Hasil</th>
+//               </tr>
+//             </thead>
+//             <tbody>
+//         `;
+
+//         series.groups.forEach(group => {
+//           group.swimmers.forEach(swimmer => {
+//             htmlContent += `
+//               <tr>
+//                 <td>${swimmer.series}</td>
+//                 <td>${swimmer.group}</td>
+//                 <td>${swimmer.lane}</td>
+//                 <td>${swimmer.full_name}</td>
+//                 <td>${swimmer.club_name}</td>
+//                 <td>${swimmer.qet || ""}</td>
+//                 <td>${swimmer.hasil || ""}</td>
+//               </tr>
+//             `;
+//           });
+//         });
+
+//         htmlContent += `</tbody></table>`;
+//       });
+//     }
+
+//     htmlContent += `</body></html>`;
+
+//     // 4. Generate PDF dengan Puppeteer
+//     const browser = await puppeteer.launch({
+//       args: ["--no-sandbox", "--disable-setuid-sandbox"],
+//     });
+//     const page = await browser.newPage();
+//     await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+//     const pdfBuffer = await page.pdf({
+//       format: "A4",
+//       printBackground: true,
+//       margin: { top: "20mm", right: "15mm", bottom: "20mm", left: "15mm" },
+//     });
+//     await browser.close();
+
+//     // 5. Kirim PDF ke response
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader(
+//       "Content-Disposition",
+//       `attachment; filename="buku_acara_${eventId}.pdf"`
+//     );
+//     res.send(pdfBuffer);
+
+//   } catch (error) {
+//     console.error("Gagal menghasilkan PDF:", error);
+//     res.status(500).json({ message: "Terjadi kesalahan saat membuat PDF", error: error.message });
+//   }
+// },
+
+ generateEventBookPdf : async (req, res) => {
   try {
     const { eventId } = req.body;
     if (!eventId) {
-      return res
-        .status(400)
-        .json({ message: "eventId harus disediakan di body request." });
+      return res.status(400).json({ message: "eventId harus disediakan di body request." });
     }
 
-    // Ambil data dari service kamu
-    const apiResponse = await axios.post(
-      "http://localhost:3025/oceantic/v1/getEventBook",
-      { eventId }
+    // Ambil data header event
+    const [eventRows] = await pool.execute(
+      "SELECT title, event_date, location FROM events WHERE id = ?",
+      [eventId]
     );
+    if (!eventRows.length) {
+      return res.status(404).json({ message: "Event tidak ditemukan." });
+    }
+    const eventData = eventRows[0];
 
-    const eventBook = apiResponse?.data?.detail;
-    if (!eventBook) {
-      return res
-        .status(404)
-        .json({ message: "Data buku acara tidak ditemukan." });
+    // Ambil Start List lewat API internal
+    const apiResponse = await axios.get(`http://localhost:3025/oceantic/v1/getStartList/${eventId}`);
+    const startList = apiResponse?.data?.startList;
+
+    if (!startList || Object.keys(startList).length === 0) {
+      return res.status(404).json({ message: "Belum ada peserta yang terdaftar." });
     }
 
-    // Baca file template HTML secara asinkron
-    const templatePath = path.join(__dirname, '..', 'templates', 'event-book-template.html');
-    const htmlTemplate = await fs.readFile(templatePath, 'utf8');
+    // Bangun HTML
+    let htmlContent = `
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; font-size: 12px; }
+          h1, h2, h3 { text-align: center; margin: 0; }
+          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          th, td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 11px; }
+          th { background: #f2f2f2; }
+          .race-title { margin-top: 30px; font-size: 14px; font-weight: bold; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <h1>${eventData.title}</h1>
+        <h3>${new Date(eventData.event_date).toLocaleDateString("id-ID")} - ${eventData.location}</h3>
+    `;
 
-    // Bangun HTML dengan template
-    const htmlContent = buildHtmlFromEventBook(eventBook, htmlTemplate);
+    Object.entries(startList).forEach(([raceKey, swimmers]) => {
+      htmlContent += `<div class="race-title">${raceKey}</div>`;
+
+      htmlContent += `
+        <table>
+          <thead>
+            <tr>
+              <th>Seri</th>
+              <th>Grup</th>
+              <th>Lint</th>
+              <th>Nama Perenang</th>
+              <th>Asal Club</th>
+              <th>QET</th>
+              <th>Hasil</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      // --- Grouping by Seri & Grup ---
+      let seriGroups = {};
+      swimmers.forEach(swimmer => {
+        const seriKey = swimmer.seri || "-";
+        const groupKey = swimmer.group || "-";
+
+        if (!seriGroups[seriKey]) seriGroups[seriKey] = {};
+        if (!seriGroups[seriKey][groupKey]) seriGroups[seriKey][groupKey] = [];
+        seriGroups[seriKey][groupKey].push(swimmer);
+      });
+
+      // Render tabel
+      Object.entries(seriGroups).forEach(([seri, groupMap]) => {
+        const seriRowspan = Object.values(groupMap).reduce((sum, g) => sum + g.length, 0);
+
+        let seriPrinted = false;
+        Object.entries(groupMap).forEach(([group, swimmerList]) => {
+          const groupRowspan = swimmerList.length;
+
+          let groupPrinted = false;
+          swimmerList.forEach((swimmer) => {
+            htmlContent += "<tr>";
+
+            // Cetak Seri sekali dengan rowspan total
+            if (!seriPrinted) {
+              htmlContent += `<td rowspan="${seriRowspan}">${seri}</td>`;
+              seriPrinted = true;
+            }
+
+            // Cetak Grup sekali dengan rowspan grup
+            if (!groupPrinted) {
+              htmlContent += `<td rowspan="${groupRowspan}">${group}</td>`;
+              groupPrinted = true;
+            }
+
+            // Kolom lainnya
+            htmlContent += `
+              <td>${swimmer.lane || ""}</td>
+              <td>${swimmer.full_name}</td>
+              <td>${swimmer.club_name}</td>
+              <td>${swimmer.qet || ""}</td>
+              <td>${swimmer.hasil || ""}</td>
+            `;
+
+            htmlContent += "</tr>";
+          });
+        });
+      });
+
+      htmlContent += `</tbody></table>`;
+    });
+
+    htmlContent += `</body></html>`;
 
     // Generate PDF dengan Puppeteer
     const browser = await puppeteer.launch({
@@ -262,21 +674,129 @@ generateEventBookPdf :async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="buku_acara_${escape(eventBook.namaEvent)
-        .replace(/\s+/g, "_")
-        .toLowerCase()}.pdf"`
+      `attachment; filename="buku_acara_${eventData.title.replace(/\s+/g, "_").toLowerCase()}.pdf"`
     );
     res.send(pdfBuffer);
   } catch (error) {
     console.error("Gagal menghasilkan PDF:", error);
-    res
-      .status(500)
-      .json({ message: "Terjadi kesalahan saat membuat PDF", error: error.message });
+    res.status(500).json({ message: "Terjadi kesalahan saat membuat PDF", error: error.message });
   }
 },
 
-// 3. Fungsi untuk Mendapatkan Event berdasarkan ID
- getEventById : async (req, res) => {
+ generateEventBookExcel : async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    if (!eventId) {
+      return res.status(400).json({ message: "eventId harus disediakan." });
+    }
+
+    // Ambil data event
+    const [eventRows] = await pool.execute(
+      "SELECT title, event_date, location FROM events WHERE id = ?",
+      [eventId]
+    );
+    if (!eventRows.length) {
+      return res.status(404).json({ message: "Event tidak ditemukan." });
+    }
+    const eventData = eventRows[0];
+
+    // Ambil startlist
+    const apiResponse = await axios.get(
+      `http://localhost:3025/oceantic/v1/getStartList/${eventId}`
+    );
+    const startList = apiResponse?.data?.startList;
+
+    if (!startList || Object.keys(startList).length === 0) {
+      return res.status(404).json({ message: "Belum ada peserta yang terdaftar." });
+    }
+
+    // Buat workbook & sheet
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Start List");
+
+    // Header event
+    sheet.mergeCells("A1:G1");
+    sheet.getCell("A1").value = eventData.title;
+    sheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
+    sheet.getCell("A1").font = { size: 16, bold: true };
+
+    sheet.mergeCells("A2:G2");
+    sheet.getCell("A2").value = `${new Date(eventData.event_date).toLocaleDateString("id-ID")} - ${eventData.location}`;
+    sheet.getCell("A2").alignment = { horizontal: "center" };
+
+    let rowPointer = 4;
+
+    // Loop tiap race
+    Object.entries(startList).forEach(([raceKey, swimmers]) => {
+      // Judul Race
+      sheet.mergeCells(`A${rowPointer}:G${rowPointer}`);
+      sheet.getCell(`A${rowPointer}`).value = raceKey;
+      sheet.getCell(`A${rowPointer}`).font = { bold: true };
+      rowPointer++;
+
+      // Header tabel
+      sheet.addRow([
+        "Seri",
+        "Grup",
+        "Lint",
+        "Nama Perenang",
+        "Asal Club",
+        "QET",
+        "Hasil",
+      ]).font = { bold: true };
+
+      // --- Grouping Seri & Grup ---
+      let seriGroups = {};
+      swimmers.forEach(swimmer => {
+        const seriKey = swimmer.seri || "-";
+        const groupKey = swimmer.group || "-";
+        if (!seriGroups[seriKey]) seriGroups[seriKey] = {};
+        if (!seriGroups[seriKey][groupKey]) seriGroups[seriKey][groupKey] = [];
+        seriGroups[seriKey][groupKey].push(swimmer);
+      });
+
+      Object.entries(seriGroups).forEach(([seri, groupMap]) => {
+        Object.entries(groupMap).forEach(([group, swimmerList]) => {
+          swimmerList.forEach(swimmer => {
+            sheet.addRow([
+              seri,
+              group,
+              swimmer.lane || "",
+              swimmer.full_name,
+              swimmer.club_name,
+              "",
+              ""
+            ]);
+          });
+        });
+      });
+
+      rowPointer = sheet.lastRow.number + 2;
+    });
+
+    // Autofit kolom
+    sheet.columns.forEach(col => {
+      let maxLength = 0;
+      col.eachCell({ includeEmpty: true }, cell => {
+        const length = cell.value ? cell.value.toString().length : 10;
+        if (length > maxLength) maxLength = length;
+      });
+      col.width = maxLength < 15 ? 15 : maxLength;
+    });
+
+    // Kirim response Excel
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=startlist_${eventData.title.replace(/\s+/g, "_")}.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error("Gagal generate Excel:", error);
+    res.status(500).json({ message: "Terjadi kesalahan saat membuat Excel", error: error.message });
+  }
+},
+getEventById : async (req, res) => {
   console.log("c");
 
   const { id } = req.params; // Ambil ID dari parameter URL
