@@ -54,6 +54,49 @@ let raceCategories = {
     console.error('Error in getAllRaceCategoriesByEventId controller:', error);
     res.status(500).json({ code: 500, message: 'Terjadi kesalahan server saat mendapatkan daftar kategori perlombaan.', detail: error.message });
   }
+}, 
+getAvailableRaces : async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    if (!eventId) {
+      return res.status(400).json({ message: "eventId harus disediakan." });
+    }
+
+    // Ambil master swim_style dari categories (UI referensi)
+    const [styles] = await pool.query(
+      `SELECT value FROM categories WHERE eventId = ? AND categoryName = 'swim_style'`,
+      [eventId]
+    );
+
+    // Ambil daftar race detail (distance, age group, gender, dll.)
+    const [races] = await pool.query(
+      `SELECT id AS race_category_id, race_number, distance, swim_style, age_group_class, gender_category 
+       FROM race_categories WHERE event_id = ? ORDER BY race_number ASC`,
+      [eventId]
+    );
+
+    // Gabungkan data biar enak dipakai UI
+    const grouped = {};
+    races.forEach(r => {
+      const key = `${r.distance}m - ${r.swim_style}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push({
+        race_category_id: r.race_category_id,
+        age_group: r.age_group_class,
+        gender: r.gender_category
+      });
+    });
+
+    return res.status(200).json({
+      code: 200,
+      message: "success",
+      swim_styles: styles.map(s => s.value), // untuk UI referensi dropdown
+      races: grouped // untuk daftar race real yang akan diinsert ke swimmer_events
+    });
+  } catch (error) {
+    console.error("Error getAvailableRaces:", error);
+    return res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
 },
 
 // Fungsi untuk memperbarui kategori perlombaan

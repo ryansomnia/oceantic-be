@@ -272,65 +272,6 @@ getEventBook: async (req, res) => {
   }
 },
 
-//  getStartList: async (req, res) => {
-//     const { event_id } = req.params;
-
-//     try {
-//       const [rows] = await pool.query(
-//         `
-//         SELECT 
-//           rc.id AS race_id,
-//           rc.race_number,
-//           rc.distance,
-//           rc.swim_style,
-//           rc.age_group_class,
-//           rc.gender_category,
-//           sr.full_name,
-//           sr.club_name,
-//           sr.date_of_birth,
-//           sr.gender,
-//           sr.id AS registration_id
-//         FROM swimmer_events se
-//         INNER JOIN swimmer_registrations sr ON se.registration_id = sr.id
-//         INNER JOIN race_categories rc ON se.race_category_id = rc.id
-//         WHERE sr.event_id = ? AND sr.payment_status = 'Success'
-//         ORDER BY rc.race_number, sr.full_name
-//         `,
-//         [event_id]
-//       );
-
-//       // Group by race_number
-//       const startList = {};
-//       rows.forEach(row => {
-//         const raceKey = `Acara ${row.race_number} | ${row.distance} ${row.swim_style} ${row.age_group_class} ${row.gender_category}`;
-//         if (!startList[raceKey]) {
-//           startList[raceKey] = [];
-//         }
-//         startList[raceKey].push({
-//           full_name: row.full_name,
-//           club_name: row.club_name,
-//           gender: row.gender,
-//           date_of_birth: row.date_of_birth,
-//           registration_id: row.registration_id
-//         });
-//       });
-
-//       res.status(200).json({
-//         code: 200,
-//         message: "Start List berhasil di-generate.",
-//         event_id,
-//         startList
-//       });
-//     } catch (error) {
-//       console.error("Error generate start list:", error);
-//       res.status(500).json({
-//         code: 500,
-//         message: "Terjadi kesalahan server saat generate start list.",
-//         detail: error.message
-//       });
-//     }
-//   },
-
  getStartList : async (req, res) => {
   try {
     const eventId = Number(req.params.event_id || req.query.event_id || req.body.event_id);

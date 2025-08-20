@@ -50,7 +50,7 @@ let category = {
       'SELECT categoryName, value FROM categories WHERE eventId = ? AND categoryName = ?',
       [eventId, categoryName]
     );
-    res.status(200).json(rows);
+    res.status(200).json({code: 200, message:'success', data: rows});
   } catch (error) {
     console.error('Error saat mendapatkan kategori:', error);
     res.status(500).json({ message: 'Terjadi kesalahan server.' });

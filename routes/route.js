@@ -64,6 +64,7 @@ router.put('/users/me', verifyToken, user.updateUserProfile);
 
 router.get('/getAllParticipants', participant.getAllParticipants);
 router.get('/getRegistrationById/:id', participant.getRegistrationById);
+router.get('/registrations/getRegistrationByUserId/:userId', participant.getRegistrationByUserId);
 
 // router.put('/editParticipant/:id', participant.editParticipant);
 // router.delete('/deleteParticipant/:id', participant.deleteParticipant);
@@ -73,6 +74,7 @@ router.get('/getRegistrationById/:id', participant.getRegistrationById);
 router.post('/login', user.loginUser);
 router.post('/createEvent', verifyToken, authorizeRoles(['admin']), event.createEvent);
 
+router.post('/categories/getAvailableRaces', raceCategories.getAvailableRaces);
 router.post('/registrations', verifyToken, authorizeRoles(['member']), participant.registerSwimmer);
 router.post('/uploadPayment', verifyToken, authorizeRoles(['member']), participant.uploadPayment);
 router.put('/updatePaymentStatusAdmin', participant.updatePaymentStatusAdmin);
@@ -175,7 +177,7 @@ router.post('/categories', verifyToken, authorizeRoles(['admin']), category.crea
 // GET /oceantic/v1/categories/getCategoryEventByEventId/:id
 router.get('/categories/getCategoryEventByEventId/:id', category.getCategoriesByEventId);
 // GET /oceantic/v1/categories/by-umur (jika Anda ingin menggunakan ini)
-router.post('/categories/getCategoryEventByName',verifyToken, authorizeRoles(['member']), category.getCategoryEventByName); // Menggunakan nama yang diperbarui
+router.post('/categories/getCategoryEventByName', category.getCategoryEventByName); // Menggunakan nama yang diperbarui
 // PUT /oceantic/v1/categories/:id
 router.put('/categories/:id', verifyToken, authorizeRoles(['admin']), category.updateCategory);
 // DELETE /oceantic/v1/categories/:id

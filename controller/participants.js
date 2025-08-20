@@ -58,7 +58,7 @@ let participants = {
   
     const {
       user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
-      club_name, age_category, distance_category, jenis_renang,
+      club_name, 
       emergency_contact_name, emergency_contact_phone,
       selected_races // <-- array of race_category_id
     } = req.body;
@@ -124,15 +124,15 @@ let participants = {
       // Insert ke swimmer_registrations
       const [regResult] = await conn.query(
         `INSERT INTO swimmer_registrations 
-        (user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
-         club_name, age_category, distance_category, jenis_renang,
-         emergency_contact_name, emergency_contact_phone,
-         payment_status, supporting_document_url,
-         parent_consent, rules_consent)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  (user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
+   club_name, emergency_contact_name, emergency_contact_phone,
+   payment_status, supporting_document_url,
+   parent_consent, rules_consent)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`,
         [
           user_id, event_id, full_name, date_of_birth, gender, email, phone_number,
-          club_name, age_category, distance_category, jenis_renang,
+          club_name,
           emergency_contact_name, emergency_contact_phone,
           "Pending", // default, belum bayar
           supportingDocumentPath,
@@ -324,6 +324,40 @@ getBukuAcara : async (req, res) => {
   return rows[0];
 },
 
+ getRegistrationByUserId : async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, event_id, full_name, payment_status, total_fee
+       FROM swimmer_registrations 
+       WHERE user_id = ?
+       ORDER BY registration_date DESC 
+       LIMIT 1`,
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        code: 404,
+        message: 'Tidak ada registrasi ditemukan untuk user ini'
+      });
+    }
+
+    return res.json({
+      code: 200,
+      message: 'success',
+      data: rows[0]
+    });
+  } catch (err) {
+    console.error('Error getRegistrationByUserId:', err);
+    return res.status(500).json({
+      code: 500,
+      message: 'Terjadi kesalahan server'
+    });
+  }
+},
+
 getStatusPaymentById : async (req,res) => {
   const {
     id
@@ -336,6 +370,9 @@ try{
     INNER JOIN
     oceantic.events AS b ON a.event_id = b.id
     WHERE a.id = ?`, [id]);
+    console.log('====================================');
+    console.log(id);
+    console.log('====================================');
     console.log('====================================');
     console.log(rows);
     console.log('====================================');
