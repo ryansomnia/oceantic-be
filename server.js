@@ -19,13 +19,14 @@ app.use(FileUpload());
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use('/oceantic/v1', mainApiRouter);
+
 // Middleware untuk logging request HTTP
 app.use(morgan('dev'));
 
 // Rute Utama API dengan Prefix /oceantic/v1
 // Semua rute yang didefinisikan di routes/index.js sekarang akan diawali dengan /oceantic/v1
 // Contoh: POST /oceantic/v1/register, GET /oceantic/v1/registrations/:id
-app.use('/oceantic/v1', mainApiRouter);
 
 // Rute Home (Root API)
 // Ini adalah rute default ketika mengakses base URL API Anda.
