@@ -272,7 +272,7 @@ getEventBook: async (req, res) => {
   }
 },
 
- getStartList : async (req, res) => {
+getStartList : async (req, res) => {
   try {
     const eventId = Number(req.params.event_id || req.query.event_id || req.body.event_id);
     if (!Number.isInteger(eventId)) {
@@ -321,21 +321,22 @@ getEventBook: async (req, res) => {
       const raceResult = [];
 
       let seriCounter = 1;
+      const groupLabels = ['A', 'B', 'C']; // hanya 3 grup
 
-      for (let i = 0; i < swimmers.length; i += 16) {
-        const seriSwimmers = swimmers.slice(i, i + 16);
+      // Loop seri, tiap seri max 12 orang
+      for (let i = 0; i < swimmers.length; i += 12) {
+        const seriSwimmers = swimmers.slice(i, i + 12);
 
-        // Bagi ke grup A-D
-        const groupLabels = ['A', 'B', 'C', 'D'];
         let groupIndex = 0;
 
+        // Loop grup (4 orang per grup)
         for (let j = 0; j < seriSwimmers.length; j += 4) {
           const groupSwimmers = seriSwimmers.slice(j, j + 4);
 
           groupSwimmers.forEach((swimmer, laneIdx) => {
             raceResult.push({
               seri: seriCounter,
-              group: groupLabels[groupIndex],
+              group: groupLabels[groupIndex] || "-",
               lane: laneIdx + 1,
               full_name: swimmer.full_name,
               club_name: swimmer.club_name,
@@ -365,6 +366,7 @@ getEventBook: async (req, res) => {
     res.status(500).json({ message: 'Terjadi kesalahan server.', detail: err.message });
   }
 },
+
 
 //   try {
 //     const { eventId } = req.body;
@@ -625,8 +627,12 @@ getEventBook: async (req, res) => {
 },
 
  generateEventBookExcel : async (req, res) => {
+  
   try {
     const { eventId } = req.body;
+    console.log('====================================');
+  console.log(eventId);
+  console.log('====================================');
     if (!eventId) {
       return res.status(400).json({ message: "eventId harus disediakan." });
     }

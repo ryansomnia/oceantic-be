@@ -61,7 +61,7 @@ const verifyToken = (req, res, next) => {
       return res.status(401).json({
         code: 401,
         message: "Unauthorized",
-        detail: 'Token tidak valid atau kadaluarsa.' 
+        detail: 'Token tidak valid atau kadaluarsa. Silahkan login kembali' 
       });
     }
     // Penting: Pastikan payload JWT Anda berisi properti 'role'

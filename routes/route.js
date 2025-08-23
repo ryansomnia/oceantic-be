@@ -81,6 +81,8 @@ router.put('/updatePaymentStatusAdmin', participant.updatePaymentStatusAdmin);
 router.get('/getStartList/:event_id',  event.getStartList);
 router.post('/generateEventBookPdf', verifyToken, authorizeRoles(['member','admin']), event.generateEventBookPdf);
 router.post('/generateEventBookExcel', verifyToken, authorizeRoles(['member','admin']), event.generateEventBookExcel);
+router.put('/editRegistration/:id', verifyToken, authorizeRoles(['admin']),  participant.editRegistration);
+router.delete('/deleteRegistration/:id', verifyToken, authorizeRoles(['admin']),  participant.deleteRegistration);
 
 // router.get("/startlist/pdf/:event_id",verifyToken, authorizeRoles(['member']), event.generateEventBookPdf);
 
@@ -137,7 +139,7 @@ router.delete('/deleteHeatSwimmer/:id', verifyToken, authorizeRoles(['admin']), 
 // router.post('/getEventBook', event.getEventBook);
 
 // Contoh Aksi: Untuk race_category_id dari "Acara 120, 25M, Papan Bebas, Golongan D, Putri", Admin membuat "Seri 1 Grup a" dan "Seri 1 Grup b" di tabel heat_details.
-// router.get('/registrations/:id', verifyToken, authorizeRoles(['admin', 'member']), getRegistrationById);
+router.get('/registrations/:id', verifyToken, authorizeRoles(['admin', 'member']), participant.getRegistrationById);
 // router.put('/registrations/:id', verifyToken, authorizeRoles(['admin']), updateRegistration);
 // router.delete('/registrations/:id', verifyToken, authorizeRoles(['admin']), deleteArticle); // Perbaikan: deleteArticle
 // router.get('/registrations/user/:userId', verifyToken, authorizeRoles(['admin']), getRegistrationsByUserId);

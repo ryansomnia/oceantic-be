@@ -113,6 +113,24 @@ let participants = {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
+console.log("sssss");
+
+
+      const [checkExisting] = await conn.query(
+        `SELECT id FROM swimmer_registrations WHERE user_id = ? AND event_id = ?`,
+        [user_id, event_id]
+      );
+    
+      if (checkExisting.length > 0) {
+        await conn.rollback();
+        return res.status(400).json({
+          code: 400,
+          message: "Bad Request",
+          detail: "Anda sudah terdaftar pada event ini."
+        });
+      }
+    
+  console.log("asjdnasdnas");
   
       // Simpan file supporting doc
       const uploadDir = path.join(__dirname, "../public/uploads/documents");
@@ -160,7 +178,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   
         let total_fee = 0;
         if (jumlah_gaya >= 2) {
-          total_fee = 300000 + (jumlah_gaya - 2) * 125000;
+          total_fee = 250000 + (jumlah_gaya - 2) * 100000;
         }
   
         await conn.query(
@@ -178,7 +196,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         });
       } else {
         await conn.rollback();
-        return res.status(400).json({ message: "selected_races wajib diisi minimal 2 gaya." });
+        return res.status(400).json({ message: " wajib diisi minimal 2 gaya." });
       }
   
     } catch (error) {
@@ -194,6 +212,99 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       conn.release();
     }
   },
+
+  // [API BARU] Edit data registrasi
+editRegistration: async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({
+      code: 400,
+      message: "Bad Request",
+      detail: "ID registrasi wajib disertakan."
+    });
+  }
+
+  try {
+    const updateData = req.body; // field non-file (full_name, email, dsb)
+
+    // Ambil file baru (jika ada)
+    const paymentPhotoFile = req.files ? req.files.payment_photo : null;
+    const supportingDocumentFile = req.files ? req.files.supporting_document : null;
+
+    const affectedRows = await participants.updateRegistration(id, updateData, paymentPhotoFile, supportingDocumentFile);
+
+    if (affectedRows === 0) {
+      return res.status(404).json({ code: 404, message: "Registrasi tidak ditemukan atau tidak ada perubahan." });
+    }
+
+    res.status(200).json({
+      code: 200,
+      message: "Registrasi berhasil diperbarui",
+      id,
+      updatedFields: Object.keys(updateData)
+    });
+  } catch (error) {
+    console.error("Error saat edit registrasi:", error);
+    res.status(500).json({ code: 500, message: "Terjadi kesalahan server saat update registrasi.", detail: error.message });
+  }
+},
+
+// [API BARU] Delete registrasi
+deleteRegistration: async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ code: 400, message: "Bad Request", detail: "ID registrasi wajib disertakan." });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Hapus relasi swimmer_events dulu
+    await conn.query(`DELETE FROM swimmer_events WHERE registration_id = ?`, [id]);
+
+    // Ambil path file lama biar bisa dihapus
+    const [oldData] = await conn.query(
+      `SELECT payment_photo_url, supporting_document_url FROM swimmer_registrations WHERE id = ?`,
+      [id]
+    );
+
+    // Hapus swimmer_registrations
+    const [result] = await conn.query(`DELETE FROM swimmer_registrations WHERE id = ?`, [id]);
+
+    if (result.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(404).json({ code: 404, message: "Registrasi tidak ditemukan." });
+    }
+
+    // Hapus file lama (jika ada)
+    if (oldData.length > 0) {
+      if (oldData[0].payment_photo_url) {
+        await fs.unlink(path.join(__dirname, "../public", oldData[0].payment_photo_url)).catch(() => {});
+      }
+      if (oldData[0].supporting_document_url) {
+        await fs.unlink(path.join(__dirname, "../public", oldData[0].supporting_document_url)).catch(() => {});
+      }
+    }
+
+    await conn.commit();
+
+    res.status(200).json({
+      code: 200,
+      message: "Registrasi berhasil dihapus",
+      id
+    });
+  } catch (error) {
+    await conn.rollback();
+    console.error("Error saat delete registrasi:", error);
+    res.status(500).json({ code: 500, message: "Terjadi kesalahan server saat delete registrasi.", detail: error.message });
+  } finally {
+    conn.release();
+  }
+},
+
   uploadPayment: async (req, res) => {
     console.log("Request Body di Backend (uploadPayment):", req.body);
   
@@ -319,9 +430,53 @@ getBukuAcara : async (req, res) => {
 },
 
 // Fungsi Layanan untuk Mendapatkan Detail Pendaftaran berdasarkan ID
- getRegistrationById : async (id) => {
-  const [rows] = await pool.execute('SELECT * FROM swimmer_registrations WHERE id = ?', [id]);
-  return rows[0];
+getRegistrationById: async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        code: 400,
+        message: "Bad Request",
+        detail: "ID registrasi wajib disediakan."
+      });
+    }
+
+    const [rows] = await pool.execute(
+      `SELECT 
+          sr.id, sr.full_name, sr.gender, sr.club_name,
+          sr.total_fee, sr.payment_status, sr.registration_date,
+          sr.email, sr.phone_number,
+          sr.date_of_birth, sr.emergency_contact_name, sr.emergency_contact_phone,
+          sr.supporting_document_url,
+          e.title AS event_title
+       FROM swimmer_registrations sr
+       JOIN events e ON sr.event_id = e.id
+       WHERE sr.id = ?`,
+      [id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        code: 404,
+        message: "Peserta tidak ditemukan."
+      });
+    }
+
+    return res.status(200).json({
+      code: 200,
+      message: "Success",
+      data: rows[0]   // kirim object tunggal
+    });
+
+  } catch (error) {
+    console.error("Error saat mengambil detail peserta:", error);
+    return res.status(500).json({
+      code: 500,
+      message: "Terjadi kesalahan server.",
+      detail: error.message
+    });
+  }
 },
 
  getRegistrationByUserId : async (req, res) => {
@@ -364,7 +519,7 @@ getStatusPaymentById : async (req,res) => {
   } = req.params;
 try{
   const [rows] = await pool.execute(`
-    SELECT a.id, b.title, a.full_name, a.payment_status, a.payment_photo_url 
+    SELECT a.id, b.title, a.full_name, a.payment_status, a.payment_photo_url, a.total_fee
     FROM
     oceantic.swimmer_registrations AS a 
     INNER JOIN
