@@ -5,6 +5,8 @@ const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs/promises'); // Tambahkan modul fs/promises
 const ExcelJS = require("exceljs");
+require('dotenv').config(); // Memuat variabel lingkungan dari .env
+
 
 // const PDFDocument = require("pdfkit");
 
@@ -388,7 +390,7 @@ getStartList : async (req, res) => {
 
 //     // 2. Ambil start list dari API kita sendiri
 //     const apiResponse = await axios.get(
-//       `http://localhost:3025/oceantic/v1/getStartList/${eventId}`
+//       ` ${process.env.URL_API}/oceantic/v1/getStartList/${eventId}`
 //     );
 //     const startList = apiResponse?.data?.startList;
 //     if (!startList || Object.keys(startList).length === 0) {
@@ -502,7 +504,7 @@ getStartList : async (req, res) => {
     const eventData = eventRows[0];
 
     // Ambil Start List lewat API internal
-    const apiResponse = await axios.get(`http://localhost:3025/oceantic/v1/getStartList/${eventId}`);
+    const apiResponse = await axios.get(`${process.env.URL_API}/oceantic/v1/getStartList/${eventId}`);
     const startList = apiResponse?.data?.startList;
 
     if (!startList || Object.keys(startList).length === 0) {
@@ -649,7 +651,7 @@ getStartList : async (req, res) => {
 
     // Ambil startlist
     const apiResponse = await axios.get(
-      `http://localhost:3025/oceantic/v1/getStartList/${eventId}`
+      `${process.env.URL_API}/oceantic/v1/getStartList/${eventId}`
     );
     const startList = apiResponse?.data?.startList;
 

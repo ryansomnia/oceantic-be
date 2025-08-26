@@ -55,7 +55,7 @@ app.use((err, req, res, next) => {
 // Baris ini hanya untuk pengembangan lokal.
 const PORT = process.env.PORT || 5000; // Port default 5000 jika tidak diatur di environment
 app.listen(PORT, async () => { // Tandai callback sebagai async
-  console.log(`Server berjalan di http://localhost:${PORT}`);
+  console.log(`Server berjalan di ${process.env.URL_API}`);
 
   // Panggil fungsi testDbConnection saat server mulai mendengarkan
   // dan tunggu hasilnya.

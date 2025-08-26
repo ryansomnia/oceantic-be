@@ -3,7 +3,9 @@ const pool = require('../config/db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs/promises');
-const moment = require('moment')
+require('dotenv').config(); // Memuat variabel lingkungan dari .env
+
+const moment = require('moment');
 function getFullTime() {
   let asiaTimeStart = new Date().toLocaleString("en-US", {
     timeZone: "Asia/Jakarta",
@@ -543,7 +545,7 @@ getAllPayment : async (req,res) => {
  
 try{
   const [rows] = await pool.execute(`
-    SELECT a.id, b.title, a.full_name, a.phone_number, a.payment_status, a.payment_photo_url 
+    SELECT a.id, b.title, a.registration_date, a.full_name, a.phone_number, a.payment_status, a.payment_photo_url 
     FROM
     oceantic.swimmer_registrations AS a 
     INNER JOIN
@@ -574,7 +576,7 @@ try{
       let filesize = image.size;
       let ext = path.extname(image.name);
       let filename = image.md5 + ext;
-      const url = `http://localhost:3025/images/${filename}`;
+      const url = `${process.env.URL_API}/images/${filename}`;
       let allowedType = [".png", ".jpg", ".jpeg"];
 
       if (!allowedType.includes(ext.toLowerCase())) {
