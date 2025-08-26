@@ -716,32 +716,49 @@ updatePaymentStatusAdmin: async (req, res) => {
       supportingDocumentPath = oldSupportingDocumentPath; // Pertahankan path lama jika tidak ada file baru yang valid
     }
 
-
+    const allowedFields = [
+      "full_name", "gender", "club_name", "total_fee", "payment_status",
+      "registration_date", "email", "phone_number", "date_of_birth",
+      "emergency_contact_name", "emergency_contact_phone", 
+      "supporting_document_url", "payment_photo_url"
+    ];
     const fields = [];
     const values = [];
 
-    // Iterasi melalui updateData untuk membangun query dinamis
-    for (const key in updateData) {
-      // Pastikan hanya field yang relevan dan tidak undefined yang ditambahkan
-      // dan tidak termasuk file yang ditangani secara terpisah
-      if (updateData[key] !== undefined && key !== 'payment_photo' && key !== 'supporting_document') {
-        fields.push(`${key} = ?`);
-        values.push(updateData[key]);
-      }
+   // Loop semua field yang diizinkan
+  allowedFields.forEach((field) => {
+    if (data[field] !== undefined) {
+      updates.push(`${field} = ?`);
+      params.push(data[field]);
     }
+  });
 
-    // Tambahkan path file ke fields/values jika diupdate
-    // Penting: Hanya update jika path baru berbeda dari yang lama atau jika path lama perlu di-null-kan
-    if (paymentPhotoPath !== oldPaymentPhotoPath) { fields.push('payment_photo_url = ?'); values.push(paymentPhotoPath); }
-    if (supportingDocumentPath !== oldSupportingDocumentPath) { fields.push('supporting_document_url = ?'); values.push(supportingDocumentPath); }
+  // Kalau ada file baru (opsional)
+  if (paymentPhotoFile) {
+    updates.push(`payment_photo_url = ?`);
+    params.push(`/uploads/payments/${paymentPhotoFile.name}`);
+    // TODO: simpan file fisik ke folder uploads/payments/
+  }
+  if (supportingDocumentFile) {
+    updates.push(`supporting_document_url = ?`);
+    params.push(`/uploads/documents/${supportingDocumentFile.name}`);
+    // TODO: simpan file fisik ke folder uploads/documents/
+  }
 
-    if (fields.length === 0) {
-      return 0; // Tidak ada perubahan
-    }
+  // Kalau tidak ada field yang bisa diupdate → return 0
+  if (updates.length === 0) return 0;
 
-    const query = `UPDATE swimmer_registrations SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`;
-    const [result] = await pool.execute(query, [...values, id]);
-    return result.affectedRows;
+  // Susun query update
+  const sql = `
+    UPDATE swimmer_registrations 
+    SET ${updates.join(", ")}, updated_at = NOW()
+    WHERE id = ?
+  `;
+  params.push(id);
+
+  const [result] = await pool.execute(sql, params);
+  return result.affectedRows;
+
   } catch (error) {
     throw error;
   }
