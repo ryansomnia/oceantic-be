@@ -668,25 +668,28 @@ updatePaymentStatusAdmin: async (req, res) => {
 },
 
 // Fungsi Layanan untuk Memperbarui Pendaftaran
- updateRegistration :async (id, updateData, paymentPhotoFileArg, supportingDocumentFileArg) => {
+updateRegistration: async (id, updateData, paymentPhotoFileArg, supportingDocumentFileArg) => {
   let paymentPhotoPath = null;
   let supportingDocumentPath = null;
   let oldPaymentPhotoPath = null;
   let oldSupportingDocumentPath = null;
 
   // Ambil objek file dengan aman.
-  const paymentPhoto = (Array.isArray(paymentPhotoFileArg) ? paymentPhotoFileArg[0] : paymentPhotoFileArg);
-  const supportingDocument = (Array.isArray(supportingDocumentFileArg) ? supportingDocumentFileArg[0] : supportingDocumentFileArg);
+  const paymentPhoto = Array.isArray(paymentPhotoFileArg) ? paymentPhotoFileArg[0] : paymentPhotoFileArg;
+  const supportingDocument = Array.isArray(supportingDocumentFileArg) ? supportingDocumentFileArg[0] : supportingDocumentFileArg;
 
   try {
-    // Ambil data pendaftaran lama untuk mendapatkan path file lama
-    const [oldRegistrationRows] = await pool.execute('SELECT payment_photo_url, supporting_document_url FROM swimmer_registrations WHERE id = ?', [id]);
+    // Ambil data lama untuk path file lama
+    const [oldRegistrationRows] = await pool.execute(
+      'SELECT payment_photo_url, supporting_document_url FROM swimmer_registrations WHERE id = ?', 
+      [id]
+    );
     if (oldRegistrationRows.length > 0) {
       oldPaymentPhotoPath = oldRegistrationRows[0].payment_photo_url;
       oldSupportingDocumentPath = oldRegistrationRows[0].supporting_document_url;
     }
 
-    // Tangani upload file bukti pembayaran baru
+    // Handle upload bukti pembayaran
     if (paymentPhoto && typeof paymentPhoto.name === 'string' && paymentPhoto.name.length > 0 && typeof paymentPhoto.mv === 'function') {
       const uploadDir = path.join(__dirname, '../public/uploads/payments');
       await fs.mkdir(uploadDir, { recursive: true });
@@ -695,13 +698,14 @@ updatePaymentStatusAdmin: async (req, res) => {
       await paymentPhoto.mv(path.join(uploadDir, fileName));
 
       if (oldPaymentPhotoPath) {
-        await fs.unlink(path.join(__dirname, '../public', oldPaymentPhotoPath)).catch(err => console.warn('Gagal menghapus file pembayaran lama:', err.message));
+        await fs.unlink(path.join(__dirname, '../public', oldPaymentPhotoPath))
+          .catch(err => console.warn('Gagal hapus file pembayaran lama:', err.message));
       }
     } else {
-      paymentPhotoPath = oldPaymentPhotoPath; // Pertahankan path lama jika tidak ada file baru yang valid
+      paymentPhotoPath = oldPaymentPhotoPath;
     }
 
-    // Tangani upload file dokumen pendukung baru
+    // Handle upload dokumen pendukung
     if (supportingDocument && typeof supportingDocument.name === 'string' && supportingDocument.name.length > 0 && typeof supportingDocument.mv === 'function') {
       const uploadDir = path.join(__dirname, '../public/uploads/documents');
       await fs.mkdir(uploadDir, { recursive: true });
@@ -710,54 +714,55 @@ updatePaymentStatusAdmin: async (req, res) => {
       await supportingDocument.mv(path.join(uploadDir, fileName));
 
       if (oldSupportingDocumentPath) {
-        await fs.unlink(path.join(__dirname, '../public', oldSupportingDocumentPath)).catch(err => console.warn('Gagal menghapus dokumen pendukung lama:', err.message));
+        await fs.unlink(path.join(__dirname, '../public', oldSupportingDocumentPath))
+          .catch(err => console.warn('Gagal hapus dokumen lama:', err.message));
       }
     } else {
-      supportingDocumentPath = oldSupportingDocumentPath; // Pertahankan path lama jika tidak ada file baru yang valid
+      supportingDocumentPath = oldSupportingDocumentPath;
     }
 
+    // Kolom yang boleh diupdate
     const allowedFields = [
       "full_name", "gender", "club_name", "total_fee", "payment_status",
       "registration_date", "email", "phone_number", "date_of_birth",
-      "emergency_contact_name", "emergency_contact_phone", 
-      "supporting_document_url", "payment_photo_url"
+      "emergency_contact_name", "emergency_contact_phone"
     ];
-    const fields = [];
-    const values = [];
 
-   // Loop semua field yang diizinkan
-  allowedFields.forEach((field) => {
-    if (data[field] !== undefined) {
-      updates.push(`${field} = ?`);
-      params.push(data[field]);
+    const updates = [];
+    const params = [];
+
+    // Loop field dari body
+    allowedFields.forEach((field) => {
+      if (updateData[field] !== undefined) {
+        updates.push(`${field} = ?`);
+        params.push(updateData[field]);
+      }
+    });
+
+    // Tambahkan file kalau ada
+    if (paymentPhotoPath) {
+      updates.push(`payment_photo_url = ?`);
+      params.push(paymentPhotoPath);
     }
-  });
+    if (supportingDocumentPath) {
+      updates.push(`supporting_document_url = ?`);
+      params.push(supportingDocumentPath);
+    }
 
-  // Kalau ada file baru (opsional)
-  if (paymentPhotoFile) {
-    updates.push(`payment_photo_url = ?`);
-    params.push(`/uploads/payments/${paymentPhotoFile.name}`);
-    // TODO: simpan file fisik ke folder uploads/payments/
-  }
-  if (supportingDocumentFile) {
-    updates.push(`supporting_document_url = ?`);
-    params.push(`/uploads/documents/${supportingDocumentFile.name}`);
-    // TODO: simpan file fisik ke folder uploads/documents/
-  }
+    if (updates.length === 0) return 0;
 
-  // Kalau tidak ada field yang bisa diupdate → return 0
-  if (updates.length === 0) return 0;
+    const sql = `
+      UPDATE swimmer_registrations 
+      SET ${updates.join(", ")}, updated_at = NOW()
+      WHERE id = ?
+    `;
+    params.push(id);
 
-  // Susun query update
-  const sql = `
-    UPDATE swimmer_registrations 
-    SET ${updates.join(", ")}, updated_at = NOW()
-    WHERE id = ?
-  `;
-  params.push(id);
+    console.log("SQL Update:", sql);
+    console.log("Params:", params);
 
-  const [result] = await pool.execute(sql, params);
-  return result.affectedRows;
+    const [result] = await pool.execute(sql, params);
+    return result.affectedRows;
 
   } catch (error) {
     throw error;
