@@ -734,10 +734,23 @@ updateRegistration: async (id, updateData, paymentPhotoFileArg, supportingDocume
     // Loop field dari body
     allowedFields.forEach((field) => {
       if (updateData[field] !== undefined) {
+        let value = updateData[field];
+    
+        // Jika field adalah tanggal
+        if (field === "registration_date" || field === "date_of_birth") {
+          const d = new Date(value);
+          if (!isNaN(d)) {
+            // kalau kolom di DB adalah DATE → YYYY-MM-DD
+            // kalau kolom di DB adalah DATETIME → YYYY-MM-DD HH:mm:ss
+            value = d.toISOString().slice(0, 19).replace("T", " "); 
+          }
+        }
+    
         updates.push(`${field} = ?`);
-        params.push(updateData[field]);
+        params.push(value);
       }
     });
+    
 
     // Tambahkan file kalau ada
     if (paymentPhotoPath) {
