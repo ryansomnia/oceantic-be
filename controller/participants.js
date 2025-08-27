@@ -557,6 +557,35 @@ try{
 
 }
 },
+
+getSwimStyles:async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const [rows] = await db.query(
+      `
+      SELECT c.swim_style 
+      FROM oceantic.swimmer_registrations a
+      INNER JOIN swimmer_events b ON a.id = b.registration_id
+      INNER JOIN race_categories c ON b.race_category_id = c.id
+      WHERE a.user_id = ?
+      `,
+      [userId]
+    );
+
+    return res.json({
+      code: 200,
+      message: "Berhasil ambil gaya renang",
+      data: rows,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      code: 500,
+      message: "Gagal ambil gaya renang",
+    });
+  }
+},
  // [API BARU] Mengunggah bukti pembayaran oleh member
  
   uploadPaymentProof: async (req, res) => {

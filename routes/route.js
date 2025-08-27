@@ -77,6 +77,8 @@ router.post('/createEvent', verifyToken, authorizeRoles(['admin']), event.create
 router.post('/categories/getAvailableRaces', raceCategories.getAvailableRaces);
 router.post('/registrations', verifyToken, authorizeRoles(['member']), participant.registerSwimmer);
 router.post('/uploadPayment', verifyToken, authorizeRoles(['member']), participant.uploadPayment);
+router.get('/getSwimStyles/:userId', verifyToken, authorizeRoles(['member']), participant.getSwimStyles);
+
 router.put('/updatePaymentStatusAdmin', participant.updatePaymentStatusAdmin);
 router.get('/getStartList/:event_id',  event.getStartList);
 router.post('/generateEventBookPdf', verifyToken, authorizeRoles(['member','admin']), event.generateEventBookPdf);
