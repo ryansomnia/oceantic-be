@@ -562,7 +562,7 @@ getSwimStyles:async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const [rows] = await db.query(
+    const [rows] = await pool.execute(
       `
       SELECT c.swim_style 
       FROM oceantic.swimmer_registrations a
