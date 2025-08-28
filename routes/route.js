@@ -86,12 +86,6 @@ router.post('/generateEventBookExcel', verifyToken, authorizeRoles(['member','ad
 router.put('/editRegistration/:id', verifyToken, authorizeRoles(['admin']),  participant.editRegistration);
 router.delete('/deleteRegistration/:id', verifyToken, authorizeRoles(['admin']),  participant.deleteRegistration);
 
-// router.get("/startlist/pdf/:event_id",verifyToken, authorizeRoles(['member']), event.generateEventBookPdf);
-
-
-// router.get("getBukuAcara/:eventId", participant.getBukuAcara);
-
-
 router.get('/getStatusPaymentById/:id', participant.getStatusPaymentById);
 router.get('/getAllPayment', participant.getAllPayment);
 
@@ -191,22 +185,6 @@ router.get('/getRaceCategoryById/:id', verifyToken, authorizeRoles(['admin']), r
 router.get('/getAllRaceCategoriesByEventId/:id', verifyToken, authorizeRoles(['admin']), raceCategories.getAllRaceCategoriesByEventId);
 router.put('/updateRaceCategory/:id', verifyToken, authorizeRoles(['admin']), raceCategories.updateRaceCategory);
 router.delete('/deleteRaceCategory/:id', verifyToken, authorizeRoles(['admin']), raceCategories.deleteRaceCategory);
-
-
-
-
-
-
-
-// ====================================
-
-// percobaan buku acara
-
-
-
-
-// ====================================
-
 
 
 

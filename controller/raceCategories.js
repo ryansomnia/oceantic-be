@@ -78,7 +78,7 @@ getAvailableRaces : async (req, res) => {
     // Gabungkan data biar enak dipakai UI
     const grouped = {};
     races.forEach(r => {
-      const key = `${r.distance}m - ${r.swim_style}`;
+      const key = `${r.distance} - ${r.swim_style}`;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push({
         race_category_id: r.race_category_id,
