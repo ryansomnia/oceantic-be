@@ -180,7 +180,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   
         let total_fee = 0;
         if (jumlah_gaya >= 2) {
-          total_fee = 250000 + (jumlah_gaya - 2) * 100000;
+          total_fee = 2500 + 250000 + (jumlah_gaya - 2) * 100000;
         }
   
         await conn.query(
