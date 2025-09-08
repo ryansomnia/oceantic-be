@@ -178,7 +178,7 @@ router.get('/getAllRaceCategoriesByEventId/:id', verifyToken, authorizeRoles(['a
 router.put('/updateRaceCategory/:id', verifyToken, authorizeRoles(['admin']), raceCategories.updateRaceCategory);
 router.delete('/deleteRaceCategory/:id', verifyToken, authorizeRoles(['admin']), raceCategories.deleteRaceCategory);
 
-router.get('/achievment/getAchievmentByEvent/:event_id', achievment.getAchievmentByEvent);
+router.get('/achievment/getAchievmentByEvent/:event_id', achievment.GetAchievmentById);
 router.get('/achievment/getAllEventsList', achievment.getAllEventsList);
 router.get('/achievment/getAllSwimmersList', achievment.getAllSwimmersList);
 router.get('/achievment/getAllRacesList', achievment.getAllRacesList);
