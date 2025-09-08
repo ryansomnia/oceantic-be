@@ -17,6 +17,7 @@ const raceCategories = require('../controller/raceCategories');
 const heatDetails = require('../controller/heatDetail');
 const heatSwimmer = require('../controller/heatSwimmer');
 const article = require('../controller/articles');
+const achievment = require('../controller/achievment');
 
 
 // const storage = multer.diskStorage({
@@ -142,20 +143,11 @@ router.get('/registrations/:id', verifyToken, authorizeRoles(['admin', 'member']
 // router.get('/registrations/event/:eventId', verifyToken, authorizeRoles(['admin']), getRegistrationsByEventId);
 
 // --- Rute Artikel ---
-// POST /oceantic/v1/articles
 router.post('/articles/createArticle', verifyToken, authorizeRoles(['admin']), article.createArticle);
-// GET /oceantic/v1/articles/category/:categoryName
 router.get('/articles/getArticlesByCategory', article.getArticlesByCategory);
-// File: router.js (atau mainApiRouter.js)
-
-
-
 router.get('/articles/getAllArticles', article.getAllArticles);
-// GET /oceantic/v1/articles/:id
 router.get('/articles/getArticleById/:id', article.getArticleById);
-// PUT /oceantic/v1/articles/:id
 router.put('/articles/updateArticle/:id', verifyToken, authorizeRoles(['admin']), article.updateArticle);
-// DELETE /oceantic/v1/articles/:id
 router.delete('/articles/deleteArticle/:id', verifyToken, authorizeRoles(['admin']), article.deleteArticle);
 
 
@@ -186,6 +178,10 @@ router.get('/getAllRaceCategoriesByEventId/:id', verifyToken, authorizeRoles(['a
 router.put('/updateRaceCategory/:id', verifyToken, authorizeRoles(['admin']), raceCategories.updateRaceCategory);
 router.delete('/deleteRaceCategory/:id', verifyToken, authorizeRoles(['admin']), raceCategories.deleteRaceCategory);
 
+router.get('/achievment/getAchievmentByEvent/:event_id', achievment.getAchievmentByEvent);
+router.get('/achievment/getAllEventsList', achievment.getAllEventsList);
+router.get('/achievment/getAllSwimmersList', achievment.getAllSwimmersList);
+router.get('/achievment/getAllRacesList', achievment.getAllRacesList);
 
 
 

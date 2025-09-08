@@ -44,6 +44,7 @@ let raceCategories = {
   }
 },
 
+
 // Fungsi untuk mendapatkan semua kategori perlombaan berdasarkan Event ID
  getAllRaceCategoriesByEventId : async (req, res) => {
   const {id} = req.params; // Asumsi eventId diambil dari URL parameter
