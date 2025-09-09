@@ -521,12 +521,26 @@ getStatusPaymentById : async (req,res) => {
   } = req.params;
 try{
   const [rows] = await pool.execute(`
-    SELECT a.id, b.title, a.full_name, a.payment_status, a.payment_photo_url, a.total_fee
-    FROM
-    oceantic.swimmer_registrations AS a 
-    INNER JOIN
-    oceantic.events AS b ON a.event_id = b.id
-    WHERE a.id = ?`, [id]);
+    SELECT 
+    a.id, 
+    b.title, 
+    a.full_name, 
+    MAX(d.age_group_class) AS age_group_class, -- ambil salah satu umur
+    a.payment_status, 
+    a.payment_photo_url, 
+    a.total_fee
+FROM oceantic.swimmer_registrations AS a
+INNER JOIN oceantic.events AS b 
+    ON a.event_id = b.id
+INNER JOIN swimmer_events c
+    ON c.registration_id = a.id
+INNER JOIN oceantic.race_categories AS d
+    ON d.id = c.race_category_id
+WHERE a.id = ?
+GROUP BY 
+    a.id, b.title, a.full_name, 
+    a.payment_status, a.payment_photo_url, a.total_fee;
+`, [id]);
     console.log('====================================');
     console.log(id);
     console.log('====================================');
