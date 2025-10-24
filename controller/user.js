@@ -95,7 +95,7 @@ let user = {
 
   try {
       const [rows] = await pool.execute(
-          'SELECT id, username, fullname, email, nohp, gender, role FROM users WHERE id = ?',
+          'SELECT id, username, fullname, email, nohp, gender,  role FROM users WHERE id = ?',
           [userId]
       );
       if (rows.length === 0) {
@@ -108,51 +108,93 @@ let user = {
   }
 },
 
- updateUserProfile : async (req, res) => {
-  const {id} = req.params;
-  const { username, fullname, email, nohp, role } = req.body;
+//  updateUserProfile : async (req, res) => {
+//   const {id} = req.params;
+//   const { username, fullname, email, nohp, role } = req.body;
 
-  if (!username && !fullname && !email && !nohp && !role) {
-      return res.status(400).json({code:400, message: 'success', detail:'Tidak ada data yang disediakan untuk diperbarui.' });
+//   if (!username && !fullname && !email && !nohp && !role) {
+//       return res.status(400).json({code:400, message: 'success', detail:'Tidak ada data yang disediakan untuk diperbarui.' });
+//   }
+
+//   const fields = [];
+//   const values = [];
+
+//   if (username !== undefined) { fields.push('username  = ?'); values.push(username ); }
+//   if (fullname !== undefined) { fields.push('fullname  = ?'); values.push(fullname ); }
+//   if (email !== undefined) { fields.push('email = ?'); values.push(email); }
+//   if (nohp !== undefined) { fields.push('nohp = ?'); values.push(nohp); }
+//   if (role !== undefined) { fields.push('role = ?'); values.push(role); }
+
+//   if (fields.length === 0) {
+//       return res.status(400).json({code:400, message: 'failed', detail:'Tidak ada data valid untuk diperbarui.' });
+//   }
+
+//   const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
+//   values.push(id);
+
+//   try {
+//       const [result] = await pool.execute(query, values);
+
+//       if (result.affectedRows === 0) {
+//           return res.status(404).json({code:404, message: 'failed', detail:'Pengguna tidak ditemukan atau tidak ada perubahan.' });
+//       }
+
+//       const [updatedUser] = await pool.execute(
+//           'SELECT id, username, fullname, email, nohp, role FROM users WHERE id = ?',
+//           [id]
+//       );
+
+//       res.status(200).json({code:200, message: 'success', detail:'Profil berhasil diperbarui.', user: updatedUser[0] });
+//   } catch (error) {
+//       console.error('Error updating user profile:', error);
+//       if (error.code === 'ER_DUP_ENTRY') {
+//           return res.status(409).json({code:409, message: 'failed', detail:'Email sudah digunakan oleh pengguna lain.' });
+//       }
+//       res.status(500).json({code:500, message: 'error', detail:'Terjadi kesalahan server saat memperbarui profil.' });
+//   }
+// },
+// Fungsi untuk Update Profil Pengguna (termasuk password)
+updateUserProfile: async (req, res) => {
+  const { id, fullname, email, nohp, role, oldPassword, newPassword } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ message: 'ID user wajib diisi.' });
   }
-
-  const fields = [];
-  const values = [];
-
-  if (username !== undefined) { fields.push('username  = ?'); values.push(username ); }
-  if (fullname !== undefined) { fields.push('fullname  = ?'); values.push(fullname ); }
-  if (email !== undefined) { fields.push('email = ?'); values.push(email); }
-  if (nohp !== undefined) { fields.push('nohp = ?'); values.push(nohp); }
-  if (role !== undefined) { fields.push('role = ?'); values.push(role); }
-
-  if (fields.length === 0) {
-      return res.status(400).json({code:400, message: 'failed', detail:'Tidak ada data valid untuk diperbarui.' });
-  }
-
-  const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
-  values.push(id);
 
   try {
-      const [result] = await pool.execute(query, values);
+    // Ambil user berdasarkan ID
+    const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [id]);
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'User tidak ditemukan.' });
+    }
 
-      if (result.affectedRows === 0) {
-          return res.status(404).json({code:404, message: 'failed', detail:'Pengguna tidak ditemukan atau tidak ada perubahan.' });
+    const user = users[0];
+    let updatedPassword = user.password; // default: password lama
+
+    // Jika ingin ganti password
+    if (oldPassword && newPassword) {
+      const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: 'Password lama salah.' });
       }
+      updatedPassword = await bcrypt.hash(newPassword, 10);
+    }
 
-      const [updatedUser] = await pool.execute(
-          'SELECT id, username, fullname, email, nohp, role FROM users WHERE id = ?',
-          [id]
-      );
+    // Update data profil
+    await pool.execute(
+      `UPDATE users 
+       SET fullname = ?, email = ?, nohp = ?,  role = ?, password = ? 
+       WHERE id = ?`,
+      [fullname || user.fullname, email || user.email, nohp || user.nohp,  role || user.role, updatedPassword, id]
+    );
 
-      res.status(200).json({code:200, message: 'success', detail:'Profil berhasil diperbarui.', user: updatedUser[0] });
+    res.status(200).json({ message: 'Profil berhasil diperbarui.' });
   } catch (error) {
-      console.error('Error updating user profile:', error);
-      if (error.code === 'ER_DUP_ENTRY') {
-          return res.status(409).json({code:409, message: 'failed', detail:'Email sudah digunakan oleh pengguna lain.' });
-      }
-      res.status(500).json({code:500, message: 'error', detail:'Terjadi kesalahan server saat memperbarui profil.' });
+    console.error('Error saat update profil:', error);
+    res.status(500).json({ message: 'Terjadi kesalahan server saat update profil.' });
   }
 },
+
 
  getAllUsers : async (req, res) => {
   try {

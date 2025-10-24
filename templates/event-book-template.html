@@ -9,14 +9,48 @@
     h3 { margin-top: 20px; }
     h4 { margin: 10px 0 5px 0; }
     table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+    /* Hanya 6 kolom: Grup, Lint, Nama, Club, QET, Hasil */
     th, td { border: 1px solid #000; padding: 5px; text-align: center; }
     th { background: #f0f0f0; }
+    /* Khusus untuk kolom Nama Perenang dan Asal Club agar rata kiri */
+    td:nth-child(3), td:nth-child(4) { text-align: left; }
+    /* Styling untuk sub-header Seri (jika logic PDF diubah untuk mencetak ini) */
+    .seri-header {
+      font-weight: bold; 
+      margin-top: 10px; 
+      margin-bottom: 5px; 
+      background: #DDDDDD; 
+      padding: 4px 6px; 
+      text-align: left; 
+      border: 1px solid #000;
+      border-bottom: none; /* Estetika */
+    }
   </style>
 </head>
 <body>
   <h1>{{EVENT_TITLE}}</h1>
   <p style="text-align:center">{{EVENT_DATE}} - {{EVENT_LOCATION}}</p>
 
+  <!-- Bagian ini seharusnya diisi dengan loop data, termasuk Seri sebagai header terpisah -->
+  <!-- CONTOH STRUKTUR YANG HARUS DIHASILKAN DALAM LOOP:
+    <h4>Acara X | Keterangan Lengkap</h4>
+    <div class="seri-header">Seri 1</div> 
+    <table>
+      <thead>
+        <tr>
+          <th>Grup</th> 
+          <th>Lint</th>
+          <th>Nama Perenang</th>
+          <th>Asal Club</th>
+          <th>QET</th>
+          <th>Hasil</th>
+        </tr>
+      </thead>
+      <tbody>
+        ... baris data ... 
+      </tbody>
+    </table>
+  -->
   {{RACE_SECTIONS}}
 </body>
 </html>
