@@ -46,7 +46,23 @@ let participants = {
   getAllParticipants : async (req, res) => {
  
     try {
-      const [rows] = await pool.execute('SELECT * FROM swimmer_registrations'); // Perhatikan nama kolom 'eventId'
+      const [rows] = await pool.execute(`SELECT 
+    a.id, 
+    a.full_name,
+    a.date_of_birth, 
+    a.club_name,
+    a.total_fee, 
+    a.payment_status,
+    c.swim_style, 
+    a.registration_date, 
+    c.age_group_class, 
+    c.gender_category AS gender
+FROM swimmer_registrations AS a
+LEFT JOIN oceantic.swimmer_events AS b 
+    ON a.id = b.registration_id
+LEFT JOIN oceantic.race_categories AS c 
+    ON b.race_category_id = c.id
+ORDER BY a.registration_date`); // Perhatikan nama kolom 'eventId'
       res.status(200).json({ code: 200, message: 'success', data: rows });
   
       // res.status(200).json(rows);
