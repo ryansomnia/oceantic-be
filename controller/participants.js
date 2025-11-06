@@ -47,7 +47,7 @@ let participants = {
  
     try {
       const [rows] = await pool.execute(`SELECT 
-    a.id, 
+    b.id, 
     a.full_name,
     a.date_of_birth, 
     a.club_name,
