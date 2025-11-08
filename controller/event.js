@@ -162,110 +162,110 @@ getEventBook: async (req, res) => {
     });
   }
 },
+// existing
+// getStartList : async (req, res) => {
+//   try {
+//     const eventId = Number(req.params.event_id || req.query.event_id || req.body.event_id);
+//     if (!Number.isInteger(eventId)) {
+//       return res.status(400).json({ message: 'eventId tidak valid' });
+//     }
 
-getStartList : async (req, res) => {
-  try {
-    const eventId = Number(req.params.event_id || req.query.event_id || req.body.event_id);
-    if (!Number.isInteger(eventId)) {
-      return res.status(400).json({ message: 'eventId tidak valid' });
-    }
+//     // Ambil data dasar peserta per lomba
+//     const [rows] = await pool.execute(`
+//       SELECT 
+//         rc.id AS race_id,
+//         rc.race_number,
+//         rc.distance,
+//         rc.swim_style,
+//         rc.age_group_class,
+//         rc.gender_category,
+//         sr.full_name,
+//         sr.club_name,
+//         sr.id AS registration_id
+//       FROM swimmer_events se
+//       INNER JOIN swimmer_registrations sr ON se.registration_id = sr.id
+//       INNER JOIN race_categories rc ON se.race_category_id = rc.id
+//       WHERE sr.event_id = ? AND sr.payment_status IN ('Paid','Success')
+//       ORDER BY rc.race_number, sr.full_name
+//     `, [eventId]);
 
-    // Ambil data dasar peserta per lomba
-    const [rows] = await pool.execute(`
-      SELECT 
-        rc.id AS race_id,
-        rc.race_number,
-        rc.distance,
-        rc.swim_style,
-        rc.age_group_class,
-        rc.gender_category,
-        sr.full_name,
-        sr.club_name,
-        sr.id AS registration_id
-      FROM swimmer_events se
-      INNER JOIN swimmer_registrations sr ON se.registration_id = sr.id
-      INNER JOIN race_categories rc ON se.race_category_id = rc.id
-      WHERE sr.event_id = ? AND sr.payment_status IN ('Paid','Success')
-      ORDER BY rc.race_number, sr.full_name
-    `, [eventId]);
+//     if (!rows.length) {
+//       return res.status(200).json({ message: 'Belum ada peserta yang terdaftar.' });
+//     }
 
-    if (!rows.length) {
-      return res.status(200).json({ message: 'Belum ada peserta yang terdaftar.' });
-    }
+//     // Grouping per race
+//     const startList = {};
+//     rows.forEach(row => {
+//       const raceKey = `Acara ${row.race_number} | ${row.distance} ${row.swim_style} ${row.age_group_class} ${row.gender_category}`;
+//       if (!startList[raceKey]) startList[raceKey] = [];
+//       startList[raceKey].push({
+//         registration_id: row.registration_id,
+//         full_name: row.full_name,
+//         club_name: row.club_name
+//       });
+//     });
 
-    // Grouping per race
-    const startList = {};
-    rows.forEach(row => {
-      const raceKey = `Acara ${row.race_number} | ${row.distance} ${row.swim_style} ${row.age_group_class} ${row.gender_category}`;
-      if (!startList[raceKey]) startList[raceKey] = [];
-      startList[raceKey].push({
-        registration_id: row.registration_id,
-        full_name: row.full_name,
-        club_name: row.club_name
-      });
-    });
+//     // Tambahkan pembagian ke Seri, Grup, Lintasan
+//     const formattedStartList = {};
+//     Object.keys(startList).forEach(raceKey => {
+//       const swimmers = startList[raceKey];
+//       const raceResult = [];
 
-    // Tambahkan pembagian ke Seri, Grup, Lintasan
-    const formattedStartList = {};
-    Object.keys(startList).forEach(raceKey => {
-      const swimmers = startList[raceKey];
-      const raceResult = [];
+//       let seriCounter = 1;
+//       const groupLabels = ['A', 'B', 'C']; // Grup maksimal 6, 4 orang per grup
 
-      let seriCounter = 1;
-      const groupLabels = ['A', 'B', 'C']; // Grup maksimal 6, 4 orang per grup
+//       // Loop seri, tiap seri max 12 orang (sesuai logika existing)
+//       const MAX_SWIMMERS_PER_SERI = 9;
+//       const SWIMMERS_PER_GROUP = 3;
 
-      // Loop seri, tiap seri max 12 orang (sesuai logika existing)
-      const MAX_SWIMMERS_PER_SERI = 9;
-      const SWIMMERS_PER_GROUP = 3;
-
-      for (let i = 0; i < swimmers.length; i += MAX_SWIMMERS_PER_SERI) {
-        const seriSwimmers = swimmers.slice(i, i + MAX_SWIMMERS_PER_SERI);
-        const currentSeriNumber = seriCounter;
+//       for (let i = 0; i < swimmers.length; i += MAX_SWIMMERS_PER_SERI) {
+//         const seriSwimmers = swimmers.slice(i, i + MAX_SWIMMERS_PER_SERI);
+//         const currentSeriNumber = seriCounter;
         
-        let groupIndex = 0;
+//         let groupIndex = 0;
 
-        // Loop grup (4 orang per grup)
-        for (let j = 0; j < seriSwimmers.length; j += SWIMMERS_PER_GROUP) {
-          const groupSwimmers = seriSwimmers.slice(j, j + SWIMMERS_PER_GROUP);
-          const currentGroupLabel = groupLabels[groupIndex] || "-";
+//         // Loop grup (4 orang per grup)
+//         for (let j = 0; j < seriSwimmers.length; j += SWIMMERS_PER_GROUP) {
+//           const groupSwimmers = seriSwimmers.slice(j, j + SWIMMERS_PER_GROUP);
+//           const currentGroupLabel = groupLabels[groupIndex] || "-";
           
-          // Hitung offset lane: j=0 -> 0 (start lane 1), j=4 -> 4 (start lane 5), j=8 -> 8 (start lane 9)
-          const laneOffset = j; 
+//           // Hitung offset lane: j=0 -> 0 (start lane 1), j=4 -> 4 (start lane 5), j=8 -> 8 (start lane 9)
+//           const laneOffset = j; 
 
-          groupSwimmers.forEach((swimmer, laneIdx) => {
-            raceResult.push({
-              seri: currentSeriNumber,
-              group: currentGroupLabel,
-              // Lane (Lintasan) dihitung berurutan dari 1 sampai MAX_SWIMMERS_PER_SERI
-              lane: laneIdx + 1 + laneOffset, 
-              full_name: swimmer.full_name,
-              club_name: swimmer.club_name,
-              qet: '',   // kolom kosong untuk panitia
-              hasil: ''  // kolom kosong untuk panitia
-            });
-          });
+//           groupSwimmers.forEach((swimmer, laneIdx) => {
+//             raceResult.push({
+//               seri: currentSeriNumber,
+//               group: currentGroupLabel,
+//               // Lane (Lintasan) dihitung berurutan dari 1 sampai MAX_SWIMMERS_PER_SERI
+//               lane: laneIdx + 1 + laneOffset, 
+//               full_name: swimmer.full_name,
+//               club_name: swimmer.club_name,
+//               qet: '',   // kolom kosong untuk panitia
+//               hasil: ''  // kolom kosong untuk panitia
+//             });
+//           });
 
-          groupIndex++;
-        }
+//           groupIndex++;
+//         }
 
-        seriCounter++;
-      }
+//         seriCounter++;
+//       }
 
-      formattedStartList[raceKey] = raceResult;
-    });
+//       formattedStartList[raceKey] = raceResult;
+//     });
 
-    return res.status(200).json({
-      code: 200,
-      message: 'Start List berhasil di-generate.',
-      event_id: eventId,
-      startList: formattedStartList
-    });
+//     return res.status(200).json({
+//       code: 200,
+//       message: 'Start List berhasil di-generate.',
+//       event_id: eventId,
+//       startList: formattedStartList
+//     });
 
-  } catch (err) {
-    console.error('Error getStartList:', err);
-    res.status(500).json({ message: 'Terjadi kesalahan server.', detail: err.message });
-  }
-},
+//   } catch (err) {
+//     console.error('Error getStartList:', err);
+//     res.status(500).json({ message: 'Terjadi kesalahan server.', detail: err.message });
+//   }
+// },
 
 // Algoritma baru 
 // getStartList : async (req, res) => {
@@ -408,7 +408,148 @@ getStartList : async (req, res) => {
 //     res.status(500).json({ message: 'Terjadi kesalahan server.', detail: err.message });
 //   }
 // },
- generateEventBookPdf : async (req, res) => {
+
+getStartList : async (req, res) => {
+  try {
+    const eventId = Number(req.params.event_id || req.query.event_id || req.body.event_id);
+    if (!Number.isInteger(eventId)) {
+      return res.status(400).json({ message: 'eventId tidak valid' });
+    }
+
+    // Ambil data dasar peserta per lomba
+    const [rows] = await pool.execute(`
+      SELECT 
+        rc.id AS race_id,
+        rc.race_number,
+        rc.distance,
+        rc.swim_style,
+        rc.age_group_class,
+        rc.gender_category,
+        sr.full_name,
+        sr.club_name,
+        sr.date_of_birth,
+        sr.id AS registration_id
+      FROM swimmer_events se
+      INNER JOIN swimmer_registrations sr ON se.registration_id = sr.id
+      INNER JOIN race_categories rc ON se.race_category_id = rc.id
+      WHERE sr.event_id = ? AND sr.payment_status IN ('Paid','Success')
+      ORDER BY rc.race_number, sr.full_name
+    `, [eventId]);
+
+    if (!rows.length) {
+      return res.status(200).json({ message: 'Belum ada peserta yang terdaftar.' });
+    }
+
+    // === LANGKAH BARU: URUTKAN BERDASARKAN KELOMPOK UMUR (KU A, B, C, D, E) ===
+    const ageOrder = {
+      'KU A (5-6 Tahun)': 1,
+      'KU B (7-8 Tahun)': 2,
+      'KU C (9-10 Tahun)': 3,
+      'KU D (11-12 Tahun)': 4,
+      'KU E (13-15 Tahun)': 5
+    };
+
+    rows.sort((a, b) => {
+      const orderA = ageOrder[a.age_group_class] || 99;
+      const orderB = ageOrder[b.age_group_class] || 99;
+      return orderA - orderB; // KU kecil duluan
+    });
+
+    // === GROUPING PER RACE ===
+    const startList = {};
+    rows.forEach(row => {
+      const raceKey = `Acara ${row.race_number} | ${row.distance} ${row.swim_style} ${row.age_group_class} ${row.gender_category}`;
+      if (!startList[raceKey]) startList[raceKey] = [];
+      startList[raceKey].push({
+        registration_id: row.registration_id,
+        full_name: row.full_name,
+        club_name: row.club_name,
+        date_of_birth: row.date_of_birth,
+      });
+    });
+
+    // === PEMROSESAN PER RACE ===
+    const formattedStartList = {};
+    Object.keys(startList).forEach(raceKey => {
+      let swimmers = startList[raceKey];
+
+      // Langkah 1: Urutkan berdasarkan usia & klub
+      swimmers.sort((a, b) => {
+        const dateA = new Date(a.date_of_birth);
+        const dateB = new Date(b.date_of_birth);
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateA.getTime() - dateB.getTime(); // Tertua duluan
+        }
+        return a.club_name.localeCompare(b.club_name);
+      });
+
+      // Langkah 2: Penyebaran Zig-Zag antar seri
+      const MAX_SWIMMERS_PER_SERI = 12;
+      const numSeries = Math.ceil(swimmers.length / MAX_SWIMMERS_PER_SERI);
+      const dispersedSwimmers = [];
+
+      for (let i = 0; i < MAX_SWIMMERS_PER_SERI; i++) {
+        for (let s = 0; s < numSeries; s++) {
+          const index = i + s * MAX_SWIMMERS_PER_SERI;
+          if (index < swimmers.length) {
+            dispersedSwimmers.push(swimmers[index]);
+          }
+        }
+      }
+      
+      swimmers = dispersedSwimmers;
+
+      // Langkah 3: Bagi ke Seri, Grup, Lintasan
+      const raceResult = [];
+      let seriCounter = 1;
+      const groupLabels = ['A', 'B', 'C']; 
+      const SWIMMERS_PER_GROUP = 3;
+
+      for (let i = 0; i < swimmers.length; i += MAX_SWIMMERS_PER_SERI) {
+        const seriSwimmers = swimmers.slice(i, i + MAX_SWIMMERS_PER_SERI);
+        const currentSeriNumber = seriCounter;
+        let groupIndex = 0;
+
+        for (let j = 0; j < seriSwimmers.length; j += SWIMMERS_PER_GROUP) {
+          const groupSwimmers = seriSwimmers.slice(j, j + SWIMMERS_PER_GROUP);
+          const currentGroupLabel = groupLabels[groupIndex] || "-";
+          const laneOffset = j;
+
+          groupSwimmers.forEach((swimmer, laneIdx) => {
+            raceResult.push({
+              seri: currentSeriNumber,
+              group: currentGroupLabel,
+              lane: laneIdx + 1 + laneOffset,
+              full_name: swimmer.full_name,
+              club_name: swimmer.club_name,
+              qet: '',
+              hasil: ''
+            });
+          });
+
+          groupIndex++;
+        }
+
+        seriCounter++;
+      }
+
+      formattedStartList[raceKey] = raceResult;
+    });
+
+    return res.status(200).json({
+      code: 200,
+      message: 'Start List berhasil di-generate dan diurut berdasarkan kelompok umur (KU).',
+      event_id: eventId,
+      startList: formattedStartList
+    });
+
+  } catch (err) {
+    console.error('Error getStartList:', err);
+    res.status(500).json({ message: 'Terjadi kesalahan server.', detail: err.message });
+  }
+},
+
+generateEventBookPdf : async (req, res) => {
   try {
     const { eventId } = req.body;
     if (!eventId) {
