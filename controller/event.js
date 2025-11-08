@@ -484,7 +484,7 @@ getStartList : async (req, res) => {
       });
 
       // Langkah 2: Penyebaran Zig-Zag antar seri
-      const MAX_SWIMMERS_PER_SERI = 12;
+      const MAX_SWIMMERS_PER_SERI = 9;
       const numSeries = Math.ceil(swimmers.length / MAX_SWIMMERS_PER_SERI);
       const dispersedSwimmers = [];
 
