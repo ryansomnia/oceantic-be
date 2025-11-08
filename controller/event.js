@@ -212,11 +212,11 @@ getStartList : async (req, res) => {
       const raceResult = [];
 
       let seriCounter = 1;
-      const groupLabels = ['A', 'B', 'C', 'D', 'E', 'F']; // Grup maksimal 6, 4 orang per grup
+      const groupLabels = ['A', 'B', 'C']; // Grup maksimal 6, 4 orang per grup
 
       // Loop seri, tiap seri max 12 orang (sesuai logika existing)
       const MAX_SWIMMERS_PER_SERI = 9;
-      const SWIMMERS_PER_GROUP = 4;
+      const SWIMMERS_PER_GROUP = 3;
 
       for (let i = 0; i < swimmers.length; i += MAX_SWIMMERS_PER_SERI) {
         const seriSwimmers = swimmers.slice(i, i + MAX_SWIMMERS_PER_SERI);
