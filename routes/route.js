@@ -18,6 +18,7 @@ const heatDetails = require('../controller/heatDetail');
 const heatSwimmer = require('../controller/heatSwimmer');
 const article = require('../controller/articles');
 const achievment = require('../controller/achievment');
+const eventPdf = require('../controller/eventPdf');
 
 
 // const storage = multer.diskStorage({
@@ -156,6 +157,8 @@ router.get('/events/getAllEvents', event.getAllEvents);
 router.get('/events/getEventsById/:id', event.getEventById);
 
 router.get('/events/getAllEventsOpen', event.getAllEventsOpen); // Menggunakan fungsi getAllEventsOpen yang spesifik\
+router.get('/events/getAllEventsComplete', event.getAllEventsComplete); // Menggunakan fungsi getAllEventsOpen yang spesifik\
+
 router.put('/events/edit/:id', verifyToken, authorizeRoles(['admin']), event.updateEvent);
 router.delete('/events/:id', verifyToken, authorizeRoles(['admin']), event.deleteEvent);
 
@@ -183,6 +186,13 @@ router.get('/achievment/getAllEventsList', achievment.getAllEventsList);
 router.get('/achievment/getAllSwimmersList', achievment.getAllSwimmersList);
 router.get('/achievment/getAllRacesList', achievment.getAllRacesList);
 
+router.get("/eventPdf/getAll", verifyToken, authorizeRoles(['admin']),eventPdf.getAllEventPDF);
+router.post("/eventPdf/upload",verifyToken, authorizeRoles(['admin']), eventPdf.uploadEventPDF);
+router.get("/eventPdf/:event_id", eventPdf.getEventPDF);  // + optional ?category=x
+router.get("/eventPdf/getById/:id", verifyToken, authorizeRoles(['admin']), eventPdf.getById);
+
+router.put("/eventPdf/edit", eventPdf.editEventPDF);
+router.delete("/eventPdf/delete/:id", eventPdf.deleteEventPDF);
 
 
 

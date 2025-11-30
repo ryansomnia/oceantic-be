@@ -114,6 +114,20 @@ getAllEventsOpen : async (req, res) => {
     res.status(500).json({ code: 500, message: 'Terjadi kesalahan server.', detail: error });
   }
 },
+getAllEventsComplete : async (req, res) => {
+  console.log('====================================');
+  console.log('getAllEventsOpen');
+  console.log('====================================');
+  try {
+    const [rows] = await pool.execute("SELECT * FROM events WHERE event_status = 'Completed'  ORDER BY event_date DESC");
+    
+    res.status(200).json({ code: 200, message: 'Success', data: rows });
+   
+  } catch (error) {
+    console.error('Error saat mendapatkan semua event:', error);
+    res.status(500).json({ code: 500, message: 'Terjadi kesalahan server.', detail: error });
+  }
+},
 
 getEventBook: async (req, res) => {
   const { eventId } = req.body; // Ambil eventId dari body request
